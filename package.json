@@ -1,19 +1,32 @@
 {
   "name": "@xxmaru10/cronos-projection",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Lógica de projeção de estado compartilhada entre frontend e backend do CronosVTT",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
-    ".": "./src/index.ts",
-    "./systems/fate": "./src/systems/fate/index.ts",
-    "./systems/vampire": "./src/systems/vampire/index.ts",
-    "./systems/fate-accelerated": "./src/systems/fate-accelerated/index.ts"
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./systems/fate": {
+      "require": "./dist/systems/fate/index.js",
+      "types": "./dist/systems/fate/index.d.ts"
+    },
+    "./systems/vampire": {
+      "require": "./dist/systems/vampire/index.js",
+      "types": "./dist/systems/vampire/index.d.ts"
+    },
+    "./systems/fate-accelerated": {
+      "require": "./dist/systems/fate-accelerated/index.js",
+      "types": "./dist/systems/fate-accelerated/index.d.ts"
+    }
   },
   "scripts": {
+    "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "publishConfig": {
