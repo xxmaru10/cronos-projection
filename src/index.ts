@@ -1,8 +1,9 @@
 // src/index.ts
-// Entry point do pacote @cronos/projection
-
-export type { ActionEvent, SessionState, Character, Aspect, Note, BattlemapState, BattlemapObject, BattlemapCombatLayer } from "./types";
-export type { SystemPluginCore, SystemId } from "./systems/types";
+// Entry point do pacote @xxmaru10/cronos-projection
+//
+// NÃO exporta tipos de domínio (SessionState, Character, etc.)
+// Cada consumer usa seus próprios tipos locais.
+// As funções exportadas aceitam 'any' para não conflitar com tipos do consumer.
 
 export {
   initialState,
@@ -16,3 +17,6 @@ export {
 
 export { normalizeIdentity, buildIdentityAliasSet, identityMatches } from "./identity";
 export { getCachedSystem, getSystem, AVAILABLE_SYSTEMS } from "./systems/registry";
+
+// Tipos do sistema são seguros de exportar (não conflitam com domain.ts do frontend)
+export type { SystemPluginCore, SystemId } from "./systems/types";
