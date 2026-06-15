@@ -1,6 +1,6 @@
 {
   "name": "@xxmaru10/cronos-projection",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lógica de projeção de estado compartilhada entre frontend e backend do CronosVTT",
   "main": "src/index.ts",
   "types": "src/index.ts",
