@@ -1,8 +1,6 @@
 // src/types.ts
-//
 // Tipos de domínio necessários para projeção de estado.
 // Copiados de front_sistema_rpg/src/types/domain.ts — manter em sync.
-// NÃO incluem tipos de UI (React components, etc.)
 
 export interface ActionEvent {
   id: string;
@@ -21,26 +19,16 @@ export interface Character {
   ownerUserId?: string;
   isNPC?: boolean;
   npcType?: string;
-  religionId?: string;
   source?: string;
   scope?: string;
   activeInArena?: boolean;
   currentZoneId?: string;
   fatePoints?: number;
   refresh?: number;
-  stress?: {
-    physical?: boolean[];
-    mental?: boolean[];
-    [key: string]: boolean[] | undefined;
-  };
-  stressValues?: {
-    physical?: number[];
-    mental?: number[];
-    unified?: number[];
-    [key: string]: number[] | undefined;
-  };
+  stress?: Record<string, boolean[]>;
+  stressValues?: Record<string, number[]>;
   skills?: Record<string, number>;
-  consequences?: Record<string, { text: string; debuff?: { skill: string; value: number } }>;
+  consequences?: Record<string, any>;
   extraConsequenceSlots?: string[];
   removedDefaultSlots?: string[];
   inventory?: any[];
@@ -53,7 +41,6 @@ export interface Character {
   sheetAspects?: string[];
   linkedNotes?: any[];
   skillResources?: Record<string, { current: number; max: number }>;
-  characterAssignments?: Record<string, string[]>;
   systemData?: any;
   impulseArrows?: number;
   money?: number;
@@ -74,11 +61,6 @@ export interface Note {
   id: string;
   content?: string;
   folderId?: string;
-  [key: string]: any;
-}
-
-export interface EntityNote {
-  id: string;
   [key: string]: any;
 }
 
@@ -138,7 +120,7 @@ export interface BattlemapState {
 }
 
 export interface SessionState {
-  id?: string;
+  id: string;
   system?: string;
   gmUserId?: string;
   seats?: any[];
