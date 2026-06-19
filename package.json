@@ -9,19 +9,27 @@
   ],
   "exports": {
     ".": {
+      "import": "./dist/index.js",
       "require": "./dist/index.js",
+      "default": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./systems/fate": {
+      "import": "./dist/systems/fate/index.js",
       "require": "./dist/systems/fate/index.js",
+      "default": "./dist/systems/fate/index.js",
       "types": "./dist/systems/fate/index.d.ts"
     },
     "./systems/vampire": {
+      "import": "./dist/systems/vampire/index.js",
       "require": "./dist/systems/vampire/index.js",
+      "default": "./dist/systems/vampire/index.js",
       "types": "./dist/systems/vampire/index.d.ts"
     },
     "./systems/fate-accelerated": {
+      "import": "./dist/systems/fate-accelerated/index.js",
       "require": "./dist/systems/fate-accelerated/index.js",
+      "default": "./dist/systems/fate-accelerated/index.js",
       "types": "./dist/systems/fate-accelerated/index.d.ts"
     }
   },
