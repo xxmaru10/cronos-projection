@@ -1,6 +1,6 @@
 {
   "name": "@xxmaru10/cronos-projection",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Lógica de projeção de estado compartilhada entre frontend e backend do CronosVTT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,6 +31,12 @@
       "require": "./dist/systems/fate-accelerated/index.js",
       "default": "./dist/systems/fate-accelerated/index.js",
       "types": "./dist/systems/fate-accelerated/index.d.ts"
+    },
+    "./systems/wod-v20": {
+      "import": "./dist/systems/wod-v20/index.js",
+      "require": "./dist/systems/wod-v20/index.js",
+      "default": "./dist/systems/wod-v20/index.js",
+      "types": "./dist/systems/wod-v20/index.d.ts"
     }
   },
   "scripts": {
