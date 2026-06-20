@@ -852,6 +852,8 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       const merged: any = { ...prev, cardId: payload.cardId, sessionId: payload.sessionId || prev.sessionId };
       if (payload.x !== undefined) merged.x = payload.x;
       if (payload.y !== undefined) merged.y = payload.y;
+      if (payload.width !== undefined) merged.width = payload.width;
+      if (payload.height !== undefined) merged.height = payload.height;
       if (payload.color !== undefined) merged.color = payload.color;
       if (payload.title !== undefined) merged.title = payload.title;
       if (payload.cardVisible !== undefined) merged.cardVisible = payload.cardVisible;
