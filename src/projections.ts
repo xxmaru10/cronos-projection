@@ -1004,6 +1004,37 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     case "GLOBAL_ITEM_NOTE_ADDED": return { ...state, items: (state.items || []).map((i) => i.id === payload.itemId ? { ...i, linkedNotes: upsertById(i.linkedNotes || [], payload.note) } : i) };
     case "GLOBAL_ITEM_NOTE_DELETED": return { ...state, items: (state.items || []).map((i) => i.id === payload.itemId ? { ...i, linkedNotes: (i.linkedNotes || []).filter((n: any) => n.id !== payload.noteId) } : i) };
 
+    // Story 178 F1 — Arena GM Cards. Fold idêntico ao front (arenaCardsFallback.ts:foldArenaCardEvent).
+    // Coloca-lo no pacote dá durabilidade: o snapshot gerado pelo backend passa a CONTER os cards
+    // (antes o pacote ignorava o evento → snapshot zerava arenaCards → card só sobrevivia enquanto
+    // delta fresco, e a sincronia em tempo real dependia do fallback do front estar deployado).
+    // wod-v20 nunca emite este evento (ver ARENA_CARD_SYSTEMS), então a regra é inerte lá.
+    case "ARENA_CARD_UPDATED": {
+      const p = payload as any;
+      if (!p?.cardId) return state;
+      const cards: Record<string, any> = { ...(state.arenaCards || {}) };
+      if (p.deleted) {
+        if (!cards[p.cardId]) return state;
+        delete cards[p.cardId];
+        return { ...state, arenaCards: cards };
+      }
+      const prev = cards[p.cardId] ?? {
+        cardId: p.cardId, sessionId: p.sessionId, x: 38, y: 24,
+        color: "var(--accent-color)", title: "Novo Card", cardVisible: false, rows: [],
+      };
+      const merged: any = { ...prev, cardId: p.cardId, sessionId: p.sessionId || prev.sessionId };
+      if (p.x !== undefined) merged.x = p.x;
+      if (p.y !== undefined) merged.y = p.y;
+      if (p.width !== undefined) merged.width = p.width;
+      if (p.height !== undefined) merged.height = p.height;
+      if (p.color !== undefined) merged.color = p.color;
+      if (p.title !== undefined) merged.title = p.title;
+      if (p.cardVisible !== undefined) merged.cardVisible = p.cardVisible;
+      if (p.rows !== undefined) merged.rows = p.rows;
+      cards[p.cardId] = merged;
+      return { ...state, arenaCards: cards };
+    }
+
     default:
       return state;
   }
