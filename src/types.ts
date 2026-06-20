@@ -142,6 +142,8 @@ export interface SessionState {
   mindMaps?: any[];
   sessionNumber?: number;
   stickyNotes?: any[];
+  /** Story 178 F1 — Arena GM Cards keyed by cardId (fate family only). */
+  arenaCards?: Record<string, any>;
   themeLocked?: boolean;
   rollVisibilityOverrides?: Record<string, any>;
   systemSkills?: any[];

@@ -47,6 +47,7 @@ export const initialState: SessionState = {
   mindMaps: [],
   sessionNumber: 1,
   stickyNotes: [],
+  arenaCards: {},
   themeLocked: false,
   rollVisibilityOverrides: {},
   systemSkills: undefined,
@@ -828,6 +829,35 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       const currentHidden = n.hiddenFor ?? [];
       if (currentHidden.includes(payload.userId)) return state;
       return { ...state, stickyNotes: state.stickyNotes!.map((sn) => sn.id === payload.id ? { ...sn, hiddenFor: [...currentHidden, payload.userId] } : sn) };
+    }
+
+    // Story 178 F1 — Arena GM Cards. Only the Fate family; ignored in wod-v20.
+    // Full-payload upsert/delete keyed by cardId (scalar fields merge, rows replace).
+    case "ARENA_CARD_UPDATED": {
+      const sys = (state.system || "fate");
+      if (sys !== "fate" && sys !== "fate-accelerated" && sys !== "vampire") return state;
+      if (!payload?.cardId) return state;
+      const cards = { ...(state.arenaCards || {}) };
+      if (payload.deleted) {
+        if (!cards[payload.cardId]) return state;
+        delete cards[payload.cardId];
+        return { ...state, arenaCards: cards };
+      }
+      const prev = cards[payload.cardId] ?? {
+        cardId: payload.cardId,
+        sessionId: payload.sessionId,
+        x: 38, y: 24, color: "var(--accent-color)", title: "Novo Card",
+        cardVisible: false, rows: [],
+      };
+      const merged: any = { ...prev, cardId: payload.cardId, sessionId: payload.sessionId || prev.sessionId };
+      if (payload.x !== undefined) merged.x = payload.x;
+      if (payload.y !== undefined) merged.y = payload.y;
+      if (payload.color !== undefined) merged.color = payload.color;
+      if (payload.title !== undefined) merged.title = payload.title;
+      if (payload.cardVisible !== undefined) merged.cardVisible = payload.cardVisible;
+      if (payload.rows !== undefined) merged.rows = payload.rows;
+      cards[payload.cardId] = merged;
+      return { ...state, arenaCards: cards };
     }
 
     case "CHARACTER_NOTE_ADDED": {
