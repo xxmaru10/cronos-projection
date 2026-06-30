@@ -140,6 +140,7 @@ export interface SessionState {
   skills?: any[];
   items?: any[];
   mindMaps?: any[];
+  agendas?: any[]; // Story 195 — GM-only Notes "Agenda" spreadsheets
   sessionNumber?: number;
   stickyNotes?: any[];
   /** Story 178 F1 — Arena GM Cards keyed by cardId (fate family only). */

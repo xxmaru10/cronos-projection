@@ -45,6 +45,7 @@ export const initialState: SessionState = {
   skills: [],
   items: [],
   mindMaps: [],
+  agendas: [],
   sessionNumber: 1,
   stickyNotes: [],
   arenaCards: {},
@@ -801,6 +802,24 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       return { ...state, mindMaps: (state.mindMaps || []).map((m) => m.id === payload.mindMapId ? { ...m, connections: (m.connections || []).map((c: any) => c.id === payload.connectionId ? { ...c, ...payload.patch } : c) } : m) };
     case "MIND_MAP_CONNECTION_DELETED":
       return { ...state, mindMaps: (state.mindMaps || []).map((m) => m.id === payload.mindMapId ? { ...m, connections: (m.connections || []).filter((c: any) => c.id !== payload.connectionId) } : m) };
+
+    // Story 195 — Agenda (GM-only Notes spreadsheet). Granular merge-by-id so a cell/page
+    // edit can't clobber a sibling. Must live here too (not only the frontend) or the
+    // backend snapshot drops agendas on reload (same failure mode as the old wod-v20 bug).
+    case "AGENDA_CREATED":
+      return { ...state, agendas: [...(state.agendas || []), payload] };
+    case "AGENDA_UPDATED":
+      return { ...state, agendas: (state.agendas || []).map((a: any) => a.id === payload.agendaId ? { ...a, ...payload.patch } : a) };
+    case "AGENDA_DELETED":
+      return { ...state, agendas: (state.agendas || []).filter((a: any) => a.id !== payload.agendaId) };
+    case "AGENDA_PAGE_ADDED":
+      return { ...state, agendas: (state.agendas || []).map((a: any) => { if (a.id !== payload.agendaId) return a; const pages = a.pages || []; if (pages.some((p: any) => p.id === payload.page.id)) return a; return { ...a, pages: [...pages, payload.page] }; }) };
+    case "AGENDA_PAGE_UPDATED":
+      return { ...state, agendas: (state.agendas || []).map((a: any) => a.id === payload.agendaId ? { ...a, pages: (a.pages || []).map((p: any) => p.id === payload.pageId ? { ...p, ...payload.patch } : p) } : a) };
+    case "AGENDA_PAGE_DELETED":
+      return { ...state, agendas: (state.agendas || []).map((a: any) => a.id === payload.agendaId ? { ...a, pages: (a.pages || []).filter((p: any) => p.id !== payload.pageId) } : a) };
+    case "AGENDA_CELL_UPDATED":
+      return { ...state, agendas: (state.agendas || []).map((a: any) => { if (a.id !== payload.agendaId) return a; return { ...a, pages: (a.pages || []).map((p: any) => { if (p.id !== payload.pageId) return p; const cells = { ...(p.cells || {}) }; const cell = payload.cell; const isEmpty = !cell || ((!cell.tags || cell.tags.length === 0) && !cell.text && !cell.color); if (isEmpty) delete cells[payload.cellKey]; else cells[payload.cellKey] = cell; return { ...p, cells }; }) }; }) };
 
     case "STICKY_NOTE_CREATED": {
       const incoming = { ...payload, ownerId: event.actorUserId };
