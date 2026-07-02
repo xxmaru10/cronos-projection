@@ -37,6 +37,12 @@
       "require": "./dist/systems/wod-v20/index.js",
       "default": "./dist/systems/wod-v20/index.js",
       "types": "./dist/systems/wod-v20/index.d.ts"
+    },
+    "./systems/wod-v5": {
+      "import": "./dist/systems/wod-v5/index.js",
+      "require": "./dist/systems/wod-v5/index.js",
+      "default": "./dist/systems/wod-v5/index.js",
+      "types": "./dist/systems/wod-v5/index.d.ts"
     }
   },
   "scripts": {
