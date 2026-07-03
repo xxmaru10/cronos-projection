@@ -693,8 +693,16 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
       const diceByTarget: Record<string, number> = (p.attackerDiceByTarget && typeof p.attackerDiceByTarget === "object") ? p.attackerDiceByTarget : {};
       // Story 203 (ported by story 208) — the declared maneuver (absent/unknown → "normal",
       // byte-identical to before). Must mirror the FRONT reducer exactly.
-      const KNOWN_MANEUVERS = ["normal", "bite", "focused", "grapple", "surprise", "total_attack", "total_defense"];
+      // Story 206 — + the 4 grapple-continuation maneuvers (round-2+ contest); they seed targets
+      // "awaiting" like a normal attack (NOT the surprise "auto" seeding). Store-only in the package.
+      const KNOWN_MANEUVERS = ["normal", "bite", "focused", "grapple", "surprise", "total_attack", "total_defense",
+        "grapple_damage", "grapple_bite", "grapple_hold", "grapple_escape"];
       const maneuver: WodV5AttackManeuver = KNOWN_MANEUVERS.includes(p.maneuver) ? p.maneuver : "normal";
+      // Story 206 — SPLIT-pool marker: validate it names one of THIS declaration's targets, else drop.
+      const grappleMaintainTargetId: string | undefined =
+        typeof p.grappleMaintainTargetId === "string" && targetIds.includes(p.grappleMaintainTargetId)
+          ? p.grappleMaintainTargetId
+          : undefined;
       // Story 203 (ported) — "Ataque Surpresa" resolves vs a STATIC difficulty of 1 (no reactive
       // defense): each target starts already "auto"-resolved with defenderSuccesses fixed at 1,
       // instead of "awaiting" a real roll (reuses the existing "auto" duel plumbing, seeded with 1).
@@ -740,6 +748,7 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
         phase: targets.every((t) => t.status !== "awaiting") ? "resolved" : "active",
         maneuver,
         focusedPenalty: maneuver === "focused" ? (Number(p.focusedPenalty) || 0) : undefined,
+        grappleMaintainTargetId,
       };
       // Story 194 (E5) — first attack PROMOTES the attacker from "Corpo a corpo a iniciar"
       // (melee_starting) to "Corpo a corpo iniciado" (melee_engaged). Only that one transition;

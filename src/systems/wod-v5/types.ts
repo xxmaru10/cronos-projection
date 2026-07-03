@@ -1327,7 +1327,12 @@ export type WodV5AdvancedInit = "groups" | "traditional";
 // menu's attack maneuvers + the transient per-character combat flags they set. These MUST match the
 // frontend `src/systems/wod-v5/types.ts` exactly so the backend snapshot preserves them; any front
 // change here has to be mirrored + republished before a backend deploy (see story 208).
-export type WodV5AttackManeuver = "normal" | "bite" | "focused" | "grapple" | "surprise" | "total_attack" | "total_defense";
+// Story 206 — the 4 grapple-CONTINUATION maneuvers (round-2+ Força + Briga opposed contest). The
+// package only STOREs them (the keep/escape resolution runs in the front's CombatTab); it must accept
+// them so the snapshot preserves a declared grapple contest.
+export type WodV5AttackManeuver =
+  | "normal" | "bite" | "focused" | "grapple" | "surprise" | "total_attack" | "total_defense"
+  | "grapple_damage" | "grapple_bite" | "grapple_hold" | "grapple_escape";
 
 // Transient per-character combat flags. All optional; absent = false/none.
 export interface WodV5ActionFlags {
@@ -1341,6 +1346,10 @@ export interface WodV5ActionFlags {
   shieldRound?: number;           // BLOQUEIO: round the shield was declared (active while === currentRound)
   maneuverPending?: boolean;      // MANOBRA: actor rolled a Manobra test; GM must still grant +1..+3
   maneuverBonusNextTurn?: number; // MANOBRA: +N (1..3) auto-added to the NEXT attack pool, then cleared
+  // Story 206 — grapple continuation: the round the grab landed OR the last maintenance/escape contest
+  // resolved. A NEW Força + Briga contest is available only when currentRound > grappleRound. Set on
+  // BOTH parties; cleared (with the other flags) on an escape. Store-only in the package.
+  grappleRound?: number;
 }
 
 export interface WodV5TurnState {
@@ -1417,6 +1426,10 @@ export interface WodV5CombatRes {
   // computeV5Outcome overrides). Absent (or "normal") = today's behavior byte-identical.
   maneuver?: WodV5AttackManeuver;
   focusedPenalty?: number;              // "focused" only — log/box note (penalty already in the roll)
+  // Story 206 — SPLIT-pool marker: among a multi-target declaration this ONE target is a grapple-
+  // MAINTENANCE contest (grapple_hold-style, no damage). Store/validate only; resolution runs in the
+  // front. Absent → today's behavior byte-identical.
+  grappleMaintainTargetId?: string;
 }
 
 // Story 193 — the GM apply step (mirrors the wod-v20 damageRes). A queue: ties / multi-target
