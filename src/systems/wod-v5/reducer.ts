@@ -1,5 +1,5 @@
 import type { ActionEvent, SessionState, Character } from "../../types";
-import type { WodV5Character, WodV5Data, Trait, WodV5TurnState, WodV5CombatRes, WodV5DuelTarget, WodV5DamageRes, V5Damage } from "./types";
+import type { WodV5Character, WodV5Data, Trait, WodV5TurnState, WodV5CombatRes, WodV5DuelTarget, WodV5DamageRes, V5Damage, WodV5AttackManeuver, WodV5ActionFlags } from "./types";
 import { createWodV5Character, buildV5ClanDisciplines, mkTrait } from "./characterTemplate";
 import { getV5ClanWeakness, V5_DISCIPLINE_ICON_BY_NAME } from "./types";
 import { ensureWodV5Data } from "./migrations";
@@ -691,12 +691,28 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
       // `attackerSuccesses`. The old `penalty` (−1 success/target) is GONE → kept 0 for back-compat.
       const byTarget: Record<string, number> = (p.attackerSuccessesByTarget && typeof p.attackerSuccessesByTarget === "object") ? p.attackerSuccessesByTarget : {};
       const diceByTarget: Record<string, number> = (p.attackerDiceByTarget && typeof p.attackerDiceByTarget === "object") ? p.attackerDiceByTarget : {};
+      // Story 203 (ported by story 208) — the declared maneuver (absent/unknown → "normal",
+      // byte-identical to before). Must mirror the FRONT reducer exactly.
+      const KNOWN_MANEUVERS = ["normal", "bite", "focused", "grapple", "surprise", "total_attack", "total_defense"];
+      const maneuver: WodV5AttackManeuver = KNOWN_MANEUVERS.includes(p.maneuver) ? p.maneuver : "normal";
+      // Story 203 (ported) — "Ataque Surpresa" resolves vs a STATIC difficulty of 1 (no reactive
+      // defense): each target starts already "auto"-resolved with defenderSuccesses fixed at 1,
+      // instead of "awaiting" a real roll (reuses the existing "auto" duel plumbing, seeded with 1).
       const targets: WodV5DuelTarget[] = targetIds.map((id, i) => {
         const defensePenalty = hits[id] ?? 0;
         hits[id] = defensePenalty + 1;
         const attackerSuccesses = id in byTarget
           ? (Number(byTarget[id]) || 0)
           : (targetIds.length === 1 ? (Number(p.attackerSuccesses) || 0) : null);
+        if (maneuver === "surprise") {
+          return {
+            defenderId: id, penalty: 0, attackerSuccesses,
+            attackerDice: id in diceByTarget ? (Number(diceByTarget[id]) || 0) : undefined,
+            defensePenalty, bilateral: false, // surprise is always unilateral (owner rule)
+            defenderSuccesses: 1, defenderWeaponDmg: 0, defenderWeaponType: "S" as const,
+            defenderNote: "dificuldade estática (surpresa)", status: "auto" as const,
+          };
+        }
         return {
           defenderId: id,
           penalty: 0,
@@ -719,7 +735,11 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
         attackerWeaponType: p.attackerWeaponType === "A" ? "A" : "S",
         attackerNote: typeof p.attackerNote === "string" ? p.attackerNote : "",
         targets,
-        phase: "active",
+        // Story 203 (ported) — surprise's targets start "auto" (all resolved) → phase resolves
+        // immediately. Every other maneuver starts "awaiting" → phase stays "active", unchanged.
+        phase: targets.every((t) => t.status !== "awaiting") ? "resolved" : "active",
+        maneuver,
+        focusedPenalty: maneuver === "focused" ? (Number(p.focusedPenalty) || 0) : undefined,
       };
       // Story 194 (E5) — first attack PROMOTES the attacker from "Corpo a corpo a iniciar"
       // (melee_starting) to "Corpo a corpo iniciado" (melee_engaged). Only that one transition;
@@ -748,6 +768,8 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
           defenderWeaponType: p.defenderWeaponType === "A" ? "A" : ("S" as const),
           defenderNote: typeof p.defenderNote === "string" ? p.defenderNote : "",
           status: "rolled" as const,
+          // Story 204 (ported by story 208) — BLOQUEIO: a guardian rolled this line for the ally.
+          blockedBy: typeof p.blockedBy === "string" ? p.blockedBy : undefined,
         };
       });
       if (!hit) return state;
@@ -816,6 +838,27 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
       const prev = ensureWodV5Turn(state);
       if (prev.combatRes && prev.combatRes.resolutionId !== p.resolutionId) return state;
       return { ...state, wodV5Turn: { ...prev, combatRes: null } } as any;
+    }
+
+    // Story 203/204 (ported by story 208) — action menu flags (grapple/bite/no-defense/total-
+    // defense/shield/maneuver-bonus). Store-only merge; a field explicitly set to null clears it
+    // (Partial<T> patch, replay-safe/idempotent). Mirrors the FRONT reducer exactly.
+    case "WOD_V5_ACTION_FLAG_SET": {
+      const prev = ensureWodV5Turn(state);
+      if (!p.characterId || !p.patch || typeof p.patch !== "object") return state;
+      const current: WodV5ActionFlags = { ...(prev.actionFlags?.[p.characterId] ?? {}) };
+      for (const [k, v] of Object.entries(p.patch)) {
+        if (v == null) delete (current as any)[k];
+        else (current as any)[k] = v;
+      }
+      return { ...state, wodV5Turn: { ...prev, actionFlags: { ...(prev.actionFlags ?? {}), [p.characterId]: current } } } as any;
+    }
+    case "WOD_V5_ACTION_FLAGS_CLEARED": {
+      const prev = ensureWodV5Turn(state);
+      if (!p.characterId || !prev.actionFlags?.[p.characterId]) return state;
+      const next = { ...prev.actionFlags };
+      delete next[p.characterId];
+      return { ...state, wodV5Turn: { ...prev, actionFlags: next } } as any;
     }
 
     default:

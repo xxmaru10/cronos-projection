@@ -1323,6 +1323,26 @@ export type WodV5CombatType = "simple" | "advanced";
 // linear Compostura+Consciência trait order with NO lanes. Default "traditional" (= pre-202 advanced).
 export type WodV5AdvancedInit = "groups" | "traditional";
 
+// Story 203/204 (ported into the package by story 208 — parity with the front reducer). The action
+// menu's attack maneuvers + the transient per-character combat flags they set. These MUST match the
+// frontend `src/systems/wod-v5/types.ts` exactly so the backend snapshot preserves them; any front
+// change here has to be mirrored + republished before a backend deploy (see story 208).
+export type WodV5AttackManeuver = "normal" | "bite" | "focused" | "grapple" | "surprise" | "total_attack" | "total_defense";
+
+// Transient per-character combat flags. All optional; absent = false/none.
+export interface WodV5ActionFlags {
+  grappledBy?: string;            // this char is grappled/bitten by <attackerId> → menu disabled
+  grappling?: string;             // this char is holding <targetId> in a grapple
+  biteHold?: string;              // vampire attacker keeps a bite-hold on <targetId>
+  noDefenseUntilRound?: number;   // Ataque Total: no reactive defense while currentRound === this
+  totalDefenseRound?: number;     // Defesa Total: +1 die on defense while currentRound === this
+  // Story 204 — the four wired actions:
+  shieldingAlly?: string;         // BLOQUEIO: this char readied a shield guarding <allyId>
+  shieldRound?: number;           // BLOQUEIO: round the shield was declared (active while === currentRound)
+  maneuverPending?: boolean;      // MANOBRA: actor rolled a Manobra test; GM must still grant +1..+3
+  maneuverBonusNextTurn?: number; // MANOBRA: +N (1..3) auto-added to the NEXT attack pool, then cleared
+}
+
 export interface WodV5TurnState {
   setupPhase: boolean;                  // the initiative box is open
   combatType: WodV5CombatType;          // "simple" | "advanced"
@@ -1345,6 +1365,9 @@ export interface WodV5TurnState {
   // `defenseHitsRound` = the platform round those counts belong to (reset when it changes).
   defenseHitsThisRound?: Record<string, number>;
   defenseHitsRound?: number;
+  // Story 203/204 (ported by story 208) — action-menu flags keyed by characterId (grapple/bite/
+  // no-defense/total-defense/shield/maneuver-bonus). Store-only; survives the backend snapshot.
+  actionFlags?: Record<string, WodV5ActionFlags>;
 }
 
 // Story 193 — V5 damage type. Saúde V5 só tem Superficial ("S") e Agravado ("A").
@@ -1377,6 +1400,8 @@ export interface WodV5DuelTarget {
   defenderNote: string | null;
   status: WodV5DuelStatus;              // awaiting → rolled | auto (pool 0 → takes dmg)
   resolved?: boolean;                   // GM outcome computed + damage box opened for this target
+  // Story 204 (ported by story 208) — BLOQUEIO: a guardian rolled THIS line in the ally's place.
+  blockedBy?: string;
 }
 
 export interface WodV5CombatRes {
@@ -1388,6 +1413,10 @@ export interface WodV5CombatRes {
   attackerNote: string;                 // pool description for the log/box
   targets: WodV5DuelTarget[];           // one per chosen target; all shown in the duel ceremony
   phase: "active" | "resolved";         // active = some target still to roll; resolved = all in
+  // Story 203 (ported by story 208) — the maneuver frozen at declaration (drives the front's
+  // computeV5Outcome overrides). Absent (or "normal") = today's behavior byte-identical.
+  maneuver?: WodV5AttackManeuver;
+  focusedPenalty?: number;              // "focused" only — log/box note (penalty already in the roll)
 }
 
 // Story 193 — the GM apply step (mirrors the wod-v20 damageRes). A queue: ties / multi-target
