@@ -144,6 +144,8 @@ export interface SessionState {
   sessionNumber?: number;
   /** Story 222 — "Regras da Mesa": texto de regras editável pelo GM, visível a todos. */
   tableRules?: string;
+  /** Story 223 — overlays de card por personagem (Olho/Luz/Furtivo). Keyed by characterId. */
+  cardOverlays?: Record<string, { hidden?: boolean; stealth?: boolean; light?: boolean }>;
   stickyNotes?: any[];
   /** Story 178 F1 — Arena GM Cards keyed by cardId (fate family only). */
   arenaCards?: Record<string, any>;
