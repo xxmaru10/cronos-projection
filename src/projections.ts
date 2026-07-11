@@ -385,6 +385,8 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       return { ...state, currentTurnUserId: undefined };
     case "SESSION_NUMBER_UPDATED":
       return { ...state, sessionNumber: payload.number };
+    case "SESSION_RULES_UPDATED":
+      return { ...state, tableRules: payload.rules };
     case "SESSION_HEADER_UPDATED":
       return { ...state, headerImages: { ...state.headerImages, [payload.tab]: payload.imageUrl } };
     case "SEAT_STATE_CHANGED":

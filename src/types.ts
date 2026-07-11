@@ -142,6 +142,8 @@ export interface SessionState {
   mindMaps?: any[];
   agendas?: any[]; // Story 195 — GM-only Notes "Agenda" spreadsheets
   sessionNumber?: number;
+  /** Story 222 — "Regras da Mesa": texto de regras editável pelo GM, visível a todos. */
+  tableRules?: string;
   stickyNotes?: any[];
   /** Story 178 F1 — Arena GM Cards keyed by cardId (fate family only). */
   arenaCards?: Record<string, any>;
