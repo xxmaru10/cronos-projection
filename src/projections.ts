@@ -21,6 +21,89 @@ import { VAMPIRE_SKILLS } from "./systems/vampire/utils";
 import { getCachedSystem } from "./systems/registry";
 import { normalizeIdentity } from "./identity";
 
+
+// ---------------------------------------------------------------------------
+// Story 308 — auxiliares das LOJAS (ver o bloco `case "SHOP_*"` no reducer).
+// MANTER EM SYNC com front_sistema_rpg/src/lib/shopFallback.ts.
+// ---------------------------------------------------------------------------
+
+/** Tamanho do anel de idempotência das transações. */
+const SHOP_TX_RING_SIZE = 50;
+
+const shopNorm = (v: unknown) => String(v ?? "").trim().toLowerCase();
+
+/**
+ * Costura `changes` no item entendendo `null` como APAGAR de verdade: mandar `undefined` não serve,
+ * porque `JSON.stringify` some com a chave e o desligar do vínculo chegaria como pacote vazio.
+ */
+function mergeShopStockChanges(item: any, changes: Record<string, unknown> | undefined): any {
+  if (!changes) return item;
+  const next: Record<string, unknown> = { ...item, ...changes };
+  for (const [k, v] of Object.entries(changes)) if (v === null) delete next[k];
+  return next;
+}
+
+/** Casa uma linha vendida com uma JÁ EXISTENTE no estoque: pelo vínculo vivo, senão pelo nome exato. */
+function findShopStockMatch(stock: any[], line: any): number {
+  if (line.globalItemId) {
+    const byLink = stock.findIndex((s: any) => s.globalItemId === line.globalItemId);
+    if (byLink >= 0) return byLink;
+  }
+  const name = shopNorm(line.name);
+  if (!name) return -1;
+  return stock.findIndex((s: any) => shopNorm(s.name) === name);
+}
+
+/** Aplica UMA transação ao estoque/bolsa/ofertas. Devolve a MESMA ref se o `txId` já foi absorvido. */
+function applyShopTransaction(shop: any, p: any): any {
+  const ring: string[] = shop.committedTxIds ?? [];
+  if (p.txId && ring.includes(p.txId)) return shop;
+
+  let stock: any[] = shop.stock ?? [];
+  for (const line of p.buy ?? []) {
+    stock = stock.map((item: any) => {
+      if (item.id !== line.itemId || item.quantity === -1) return item;
+      return { ...item, quantity: Math.max(0, item.quantity - Math.max(0, line.qty)) };
+    });
+  }
+  stock = stock.filter((item: any) => item.quantity !== 0);
+
+  const rate = shop.buybackRate && shop.buybackRate > 0 ? shop.buybackRate : 0.5;
+  for (const line of p.sell ?? []) {
+    const qty = Math.max(0, line.qty);
+    if (qty === 0) continue;
+    const idx = findShopStockMatch(stock, line);
+    if (idx >= 0) {
+      if (stock[idx].quantity === -1) continue;
+      stock = stock.map((s: any, i: number) => (i === idx ? { ...s, quantity: s.quantity + qty } : s));
+      continue;
+    }
+    const price = Math.round((line.unitPrice || 0) / rate);
+    stock = [...stock, {
+      id: `${p.txId}-${line.itemId}`,
+      name: line.name || "Item",
+      description: line.description,
+      imageUrl: line.imageUrl,
+      iconId: line.iconId,
+      globalItemId: line.globalItemId,
+      price,
+      quantity: qty,
+      // Story 316 f/up — o que é REGRA vem junto, senão a peça vendida renasce na prateleira
+      // sem categoria, sem dano, sem penalidade e sem raridade.
+      payload: line.payload,
+      loadSize: line.loadSize,
+    }];
+  }
+
+  const wallet = shop.wallet === -1 ? -1 : (shop.wallet ?? 0) - p.netDelta;
+  const key = shopNorm(p.playerUserId);
+  const offers = { ...(shop.offers ?? {}) };
+  delete offers[key];
+  const nextRing = p.txId ? [...ring, p.txId].slice(-SHOP_TX_RING_SIZE) : ring;
+
+  return { ...shop, stock, wallet, offers, committedTxIds: nextRing };
+}
+
 // ---------------------------------------------------------------------------
 // Estado inicial
 // ---------------------------------------------------------------------------
@@ -830,6 +913,68 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       return { ...state, agendas: (state.agendas || []).map((a: any) => a.id === payload.agendaId ? { ...a, pages: (a.pages || []).filter((p: any) => p.id !== payload.pageId) } : a) };
     case "AGENDA_CELL_UPDATED":
       return { ...state, agendas: (state.agendas || []).map((a: any) => { if (a.id !== payload.agendaId) return a; return { ...a, pages: (a.pages || []).map((p: any) => { if (p.id !== payload.pageId) return p; const cells = { ...(p.cells || {}) }; const cell = payload.cell; const isEmpty = !cell || ((!cell.tags || cell.tags.length === 0) && !cell.text && !cell.color); if (isEmpty) delete cells[payload.cellKey]; else cells[payload.cellKey] = cell; return { ...p, cells }; }) }; }) };
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // Story 308 (Épico 05) — LOJAS. E o motivo de estarem AQUI é o mesmo da Agenda logo acima.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // Relato do dono: *"as lojas que fiz, toda vez que damos um commit novo, elas desaparecem"*.
+    //
+    // O front tem um `shopFallback` que re-dobra estes eventos por cima do estado projetado, e ele
+    // funciona — enquanto os eventos ainda estiverem no cache local. O que ele NÃO pode fazer é
+    // recuperar o que o SNAPSHOT já absorveu: o backend tira snapshot com ESTE pacote, e um pacote
+    // que não conhece SHOP_* produz um snapshot sem lojas. A partir daí o cliente só recebe os
+    // eventos posteriores ao snapshot, e os que criaram a loja não voltam para ninguém. Um deploy
+    // (cache novo, bootstrap frio) é o momento em que isso vira visível — daí "toda vez que damos
+    // um commit".
+    //
+    // É a MESMA falha que a Agenda descreve duas dúzias de linhas acima e que o wod-v20 pagou antes
+    // dela. Com estes cases o snapshot passa a carregar as lojas e elas param de sumir.
+    //
+    // REGRA DE OURO: este reducer é dono de `state.shops` e de MAIS NADA. Ele nunca escreve ficha —
+    // quem muda a ficha são os eventos que o adaptador do módulo devolve, no mesmo burst.
+    //
+    // IDEMPOTÊNCIA: a transação é vários eventos e carrega um `txId`; a loja guarda um anel
+    // `committedTxIds` (máx. 50). Sem ele, o catch-up de uma reconexão descontaria o estoque duas
+    // vezes. Os eventos do lado da FICHA são idempotentes por construção (carregam o array INTEIRO).
+    //
+    // MANTER EM SYNC com front_sistema_rpg/src/lib/shopFallback.ts.
+    case "SHOP_CREATED": {
+      const shop = payload as any;
+      if (!shop?.id) return state;
+      const shops = state.shops || [];
+      if (shops.some((s: any) => s.id === shop.id)) return state;
+      return { ...state, shops: [...shops, { ...shop, stock: shop.stock || [], offers: shop.offers || {}, committedTxIds: shop.committedTxIds || [] }] };
+    }
+    case "SHOP_UPDATED":
+      return { ...state, shops: (state.shops || []).map((s: any) => (s.id === payload.shopId ? { ...s, ...payload.changes } : s)) };
+    case "SHOP_DELETED":
+      return { ...state, shops: (state.shops || []).filter((s: any) => s.id !== payload.shopId) };
+    case "SHOP_STOCK_ADDED":
+      return { ...state, shops: (state.shops || []).map((s: any) => {
+        if (s.id !== payload.shopId) return s;
+        const stock = s.stock || [];
+        if (stock.some((i: any) => i.id === payload.item?.id)) return s;
+        return { ...s, stock: [...stock, payload.item] };
+      }) };
+    case "SHOP_STOCK_UPDATED":
+      return { ...state, shops: (state.shops || []).map((s: any) => (s.id === payload.shopId
+        ? { ...s, stock: (s.stock || []).map((i: any) => (i.id === payload.itemId ? mergeShopStockChanges(i, payload.changes) : i)) }
+        : s)) };
+    case "SHOP_STOCK_REMOVED":
+      return { ...state, shops: (state.shops || []).map((s: any) => (s.id === payload.shopId
+        ? { ...s, stock: (s.stock || []).filter((i: any) => i.id !== payload.itemId) }
+        : s)) };
+    case "SHOP_OFFER_SET":
+      return { ...state, shops: (state.shops || []).map((s: any) => {
+        if (s.id !== payload.shopId) return s;
+        const key = String(payload.playerUserId ?? "").trim().toLowerCase();
+        const offers = { ...(s.offers || {}) };
+        if (payload.clear || !payload.offer) delete offers[key];
+        else offers[key] = payload.offer;
+        return { ...s, offers };
+      }) };
+    case "SHOP_TRANSACTION_COMMITTED":
+      return { ...state, shops: (state.shops || []).map((s: any) => (s.id === payload.shopId ? applyShopTransaction(s, payload) : s)) };
 
     case "STICKY_NOTE_CREATED": {
       const incoming = { ...payload, ownerId: event.actorUserId };
