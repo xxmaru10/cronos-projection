@@ -115,6 +115,10 @@ export interface BattlemapState {
   layers?: BattlemapCombatLayer[];
   activeLayerId?: string;
   battlemaps?: any[];
+  // Falas do Narrador/token do modo COMBATE. No topo (e nao em scenes[]) porque o modo
+  // combate nao tem cenas; ha uma lista igual em cada item de battlemaps[]. Cortadas em
+  // BATTLEMAP_DIALOGUE_RETENTION_LIMIT dentro do reducer de BATTLEMAP_UPDATED.
+  dialogueMessages?: any[];
   fogOfWar?: any;
   [key: string]: any;
 }

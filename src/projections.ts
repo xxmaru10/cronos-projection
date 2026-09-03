@@ -361,6 +361,13 @@ function migrateFogLayers(state: BattlemapState): BattlemapState {
 
 export const SCENE_DIALOGUE_RETENTION_LIMIT = 200;
 
+// Retencao das falas do NARRADOR/TOKEN do battlemap de combate. Elas nao moram em
+// scenes[] (o modo combate nao tem cenas): ficam no topo do BattlemapState e, quando ha
+// mapas nomeados, em cada NamedBattlemap. Mesmo numero do Teatro de proposito - o teto e
+// o que o usuario CONSEGUE ver no log, e guardar mais que isso no snapshot so engorda o
+// payload que toda mesa baixa ao entrar, sem devolver fala nenhuma para ninguem.
+export const BATTLEMAP_DIALOGUE_RETENTION_LIMIT = 200;
+
 export function trimSceneDialogues<T extends { dialogueMessages?: any[] }>(scenes: T[]): T[] {
   if (!Array.isArray(scenes)) return scenes;
   let changed = false;
@@ -1063,7 +1070,20 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     case "BATTLEMAP_UPDATED": {
       let merged = { ...(state.battlemap || createDefaultBattlemap()), ...payload } as BattlemapState;
       if (merged.objects) merged.objects = merged.objects.map(mirrorObjectState1);
-      if (merged.battlemaps) merged.battlemaps = merged.battlemaps.map((bm) => ({ ...bm, objects: (bm.objects || []).map(mirrorObjectState1) }));
+      // Corta as falas AQUI tambem, e nao so no front: o BATTLEMAP_UPDATED carrega o estado
+      // inteiro, entao sem este corte o snapshot do servidor guardaria falas que o log do
+      // usuario nunca mais mostra - crescendo para sempre numa campanha de texto e pesando na
+      // hora de carregar a mesa. Espelha o corte de projections.ts do front.
+      if (Array.isArray(merged.dialogueMessages) && merged.dialogueMessages.length > BATTLEMAP_DIALOGUE_RETENTION_LIMIT) {
+        merged.dialogueMessages = merged.dialogueMessages.slice(-BATTLEMAP_DIALOGUE_RETENTION_LIMIT);
+      }
+      if (merged.battlemaps) merged.battlemaps = merged.battlemaps.map((bm) => ({
+        ...bm,
+        objects: (bm.objects || []).map(mirrorObjectState1),
+        dialogueMessages: Array.isArray(bm.dialogueMessages) && bm.dialogueMessages.length > BATTLEMAP_DIALOGUE_RETENTION_LIMIT
+          ? bm.dialogueMessages.slice(-BATTLEMAP_DIALOGUE_RETENTION_LIMIT)
+          : bm.dialogueMessages,
+      }));
       if (merged.scenes) merged.scenes = merged.scenes.map((sc) => ({ ...sc, objects: (sc.objects || []).map(mirrorObjectState1) }));
       if (payload.fogOfWar !== undefined) merged.fogOfWar = { ...(state.battlemap?.fogOfWar || {}), ...payload.fogOfWar };
       if (payload.gridSize !== undefined && payload.gridSizeX === undefined && payload.gridSizeY === undefined) { merged.gridSizeX = merged.gridSize; merged.gridSizeY = merged.gridSize; }
