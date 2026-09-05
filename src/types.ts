@@ -156,6 +156,8 @@ export interface SessionState {
   themeLocked?: boolean;
   rollVisibilityOverrides?: Record<string, any>;
   systemSkills?: any[];
+  /** Ids do catalogo que o Mestre excluiu - impede o recovery de repor a pericia padrao. */
+  deletedSystemSkillIds?: string[];
   soundSettings?: any;
   characterAssignments?: Record<string, string[]>;
   battlemap?: BattlemapState;

@@ -329,10 +329,14 @@ function ensureSystemSkills(state: SessionState): SessionState {
     return ensureSystemSkills({ ...state, systemSkills: cleanedSkills });
   }
 
+  // A recuperacao NAO pode ressuscitar o que o Mestre excluiu de proposito: sem o filtro por
+  // `deletedSystemSkillIds`, o SYSTEM_SKILL_DELETED de uma pericia fixa (Atletismo, Vigor, ...)
+  // era desfeito aqui no PROXIMO evento da sessao - a pericia "sempre voltava".
   if (isFate || isVampire) {
     const defaults = getDefaults();
     const existingIds = new Set(state.systemSkills.map((s) => s.id));
-    const missingDefaults = defaults.filter((d) => !existingIds.has(d.id));
+    const deletedIds = new Set((state as any).deletedSystemSkillIds || []);
+    const missingDefaults = defaults.filter((d) => !existingIds.has(d.id) && !deletedIds.has(d.id));
     if (missingDefaults.length > 0) {
       return { ...state, systemSkills: [...missingDefaults, ...state.systemSkills] };
     }
@@ -1142,7 +1146,8 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     }
 
     case "SYSTEM_SKILL_CREATED":
-      return { ...state, systemSkills: [...(state.systemSkills || []), payload] };
+      // Recriar um id enterrado (so o recovery produz ids `default-*`) apaga a lapide.
+      return { ...state, systemSkills: [...(state.systemSkills || []), payload], deletedSystemSkillIds: ((state as any).deletedSystemSkillIds || []).filter((x: string) => x !== payload.id) };
     case "SYSTEM_SKILL_RENAMED": {
       const { id, name: newName } = payload;
       const skillDef = (state.systemSkills || []).find((s) => s.id === id);
@@ -1178,7 +1183,10 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
           nextCharacters[charId] = { ...char, skills: nextCharSkills };
         }
       }
-      return { ...state, systemSkills: nextSkills, characters: nextCharacters };
+      // Lapide: sem ela o `ensureSystemSkills` repoe a pericia padrao no proximo evento.
+      const prevDeleted: string[] = (state as any).deletedSystemSkillIds || [];
+      const nextDeleted = prevDeleted.includes(id) ? prevDeleted : [...prevDeleted, id];
+      return { ...state, systemSkills: nextSkills, characters: nextCharacters, deletedSystemSkillIds: nextDeleted };
     }
     case "SYSTEM_SKILLS_REORDERED": {
       const { skillIds } = payload;
