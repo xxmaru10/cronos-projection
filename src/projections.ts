@@ -481,6 +481,11 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       return { ...state, sessionNumber: payload.number };
     case "SESSION_RULES_UPDATED":
       return { ...state, tableRules: payload.rules };
+    // Story 433 (front) — configurações de mesa do plugin: bolsa opaca, troca inteira por sistema.
+    // Must live here too (not only the frontend) or the backend snapshot drops them on reload.
+    case "SESSION_SYSTEM_SETTINGS_UPDATED":
+      if (!payload?.systemId || !payload?.settings || typeof payload.settings !== "object") return state;
+      return { ...state, systemSettings: { ...(state.systemSettings || {}), [payload.systemId]: payload.settings } };
     case "CARD_OVERLAY_SET":
       return {
         ...state,

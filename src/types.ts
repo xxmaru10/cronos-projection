@@ -148,6 +148,8 @@ export interface SessionState {
   sessionNumber?: number;
   /** Story 222 — "Regras da Mesa": texto de regras editável pelo GM, visível a todos. */
   tableRules?: string;
+  /** Story 433 — configurações de mesa POR SISTEMA (bolsa opaca que só o plugin lê). Keyed by systemId. */
+  systemSettings?: Record<string, Record<string, unknown>>;
   /** Story 223 — overlays de card por personagem (Olho/Luz/Furtivo). Keyed by characterId. */
   cardOverlays?: Record<string, { hidden?: boolean; stealth?: boolean; light?: boolean }>;
   stickyNotes?: any[];
