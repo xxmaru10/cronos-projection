@@ -635,6 +635,34 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, stunts: (char.stunts || []).filter((s) => s.id !== payload.stuntId) } } };
     }
 
+    /*
+     * Aba MAGIAS da ficha do Fate. Os três casos NUNCA existiram aqui — só em
+     * `front_sistema_rpg/src/lib/projections.ts`, que não roda na sessão. Efeito em mesa: o Mestre
+     * salvava uma magia, o formulário fechava e a lista continuava vazia, sem erro nenhum. O front
+     * cobre a janela ao vivo por `src/lib/spellsFallback.ts` e o back regrava por
+     * `snapshot.worker.ts`; daqui para frente quem projeta é este reducer.
+     */
+    case "CHARACTER_SPELL_UPDATED": {
+      const char = state.characters[payload.characterId];
+      if (!char) return state;
+      const currentSpells = char.spells || [];
+      const spellIndex = currentSpells.findIndex((s: any) => s.id === payload.spell.id);
+      const newSpells = spellIndex >= 0 ? currentSpells.map((s: any, i: number) => i === spellIndex ? payload.spell : s) : [...currentSpells, payload.spell];
+      return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, spells: newSpells } } };
+    }
+
+    case "CHARACTER_SPELL_DELETED": {
+      const char = state.characters[payload.characterId];
+      if (!char) return state;
+      return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, spells: (char.spells || []).filter((s: any) => s.id !== payload.spellId) } } };
+    }
+
+    case "CHARACTER_MAGIC_LEVEL_UPDATED": {
+      const char = state.characters[payload.characterId];
+      if (!char) return state;
+      return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, magicLevel: payload.level } } };
+    }
+
     case "CHARACTER_SKILL_UPDATED": {
       const char = state.characters[payload.characterId];
       if (!char) return state;
