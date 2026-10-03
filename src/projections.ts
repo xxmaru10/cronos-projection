@@ -883,6 +883,43 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     case "TIMELINE_EVENT_DELETED":
       return { ...state, timeline: (state.timeline || []).filter((e) => e.id !== payload.eventId) };
 
+    // Story 466 — calendários do mundo, linhas do tempo (contêineres) e grupos. Espelho de
+    // front_sistema_rpg/src/lib/timelineFallback.ts. CREATED é upsert (idempotente).
+    case "CALENDAR_CREATED":
+      return payload?.id ? { ...state, calendars: upsertById((state as any).calendars || [], payload) } as any : state;
+    case "CALENDAR_UPDATED":
+      return { ...state, calendars: ((state as any).calendars || []).map((c: any) => c.id === payload.calendarId ? { ...c, ...payload.patch } : c) } as any;
+    case "CALENDAR_DELETED":
+      return {
+        ...state,
+        calendars: ((state as any).calendars || []).filter((c: any) => c.id !== payload.calendarId),
+        timelines: ((state as any).timelines || []).map((t: any) => t.calendarId === payload.calendarId ? { ...t, calendarId: null } : t),
+        agendas: (state.agendas || []).map((a: any) => a.calendarId === payload.calendarId ? { ...a, calendarId: null } : a),
+      } as any;
+    case "TIMELINE_CREATED":
+      return payload?.id ? { ...state, timelines: upsertById((state as any).timelines || [], payload) } as any : state;
+    case "TIMELINE_UPDATED":
+      return { ...state, timelines: ((state as any).timelines || []).map((t: any) => t.id === payload.timelineId ? { ...t, ...payload.patch } : t) } as any;
+    case "TIMELINE_DELETED":
+      // A "principal" nunca é apagada; missões moram em `missions` e não são tocadas.
+      if (!payload?.timelineId || payload.timelineId === "principal") return state;
+      return {
+        ...state,
+        timelines: ((state as any).timelines || []).filter((t: any) => t.id !== payload.timelineId),
+        timelineGroups: ((state as any).timelineGroups || []).filter((g: any) => g.timelineId !== payload.timelineId),
+        timeline: (state.timeline || []).filter((e: any) => e.timelineId !== payload.timelineId),
+      } as any;
+    case "TIMELINE_GROUP_CREATED":
+      return payload?.id ? { ...state, timelineGroups: upsertById((state as any).timelineGroups || [], payload) } as any : state;
+    case "TIMELINE_GROUP_UPDATED":
+      return { ...state, timelineGroups: ((state as any).timelineGroups || []).map((g: any) => g.id === payload.groupId ? { ...g, ...payload.patch } : g) } as any;
+    case "TIMELINE_GROUP_DELETED":
+      return {
+        ...state,
+        timelineGroups: ((state as any).timelineGroups || []).filter((g: any) => g.id !== payload.groupId),
+        timeline: (state.timeline || []).map((e: any) => Array.isArray(e.groupIds) && e.groupIds.includes(payload.groupId) ? { ...e, groupIds: e.groupIds.filter((id: string) => id !== payload.groupId) } : e),
+      } as any;
+
     case "GLOBAL_SKILL_CREATED":
       return { ...state, skills: [...(state.skills || []), payload] };
     case "GLOBAL_SKILL_UPDATED":
