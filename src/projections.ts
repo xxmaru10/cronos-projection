@@ -78,7 +78,10 @@ function applyShopTransaction(shop: any, p: any): any {
       stock = stock.map((s: any, i: number) => (i === idx ? { ...s, quantity: s.quantity + qty } : s));
       continue;
     }
-    const price = Math.round((line.unitPrice || 0) / rate);
+    // Story 487 (front) — linha vendida pelo preço INTEIRO (`fullValue`: gema, obra de arte, mercadoria do
+    // dnd-2024) não teve taxa de recompra aplicada: dividir pela taxa dobraria o valor dela na prateleira.
+    // Espelho de `applyShopTransaction` em `front_sistema_rpg/src/lib/shopFallback.ts`.
+    const price = line.fullValue ? Math.round(line.unitPrice || 0) : Math.round((line.unitPrice || 0) / rate);
     stock = [...stock, {
       id: `${p.txId}-${line.itemId}`,
       name: line.name || "Item",
