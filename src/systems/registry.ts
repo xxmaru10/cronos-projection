@@ -9,6 +9,7 @@ import vampirePlugin from "./vampire/index";
 import acceleratedPlugin from "./fate-accelerated/index";
 import wodV20Plugin from "./wod-v20/index";
 import wodV5Plugin from "./wod-v5/index";
+import dnd2014Plugin from "./dnd-2014/index";
 import dnd2024Plugin from "./dnd-2024/index";
 
 const registry = new Map<string, SystemPluginCore>([
@@ -17,6 +18,7 @@ const registry = new Map<string, SystemPluginCore>([
   ["fate-accelerated", acceleratedPlugin],
   ["wod-v20", wodV20Plugin],
   ["wod-v5", wodV5Plugin],
+  ["dnd-2014", dnd2014Plugin],
   ["dnd-2024", dnd2024Plugin],
 ]);
 
@@ -35,5 +37,6 @@ export const AVAILABLE_SYSTEMS = [
   { id: "vampire" as SystemId, name: "Fate – Homebrew: Vampire" },
   { id: "wod-v20" as SystemId, name: "Vampiro A Máscara - V20" },
   { id: "wod-v5" as SystemId, name: "Vampiro A Máscara - V5" },
+  { id: "dnd-2014" as SystemId, name: "D&D 5E. 2014" },
   { id: "dnd-2024" as SystemId, name: "D&D 5E. 2024" },
 ];
