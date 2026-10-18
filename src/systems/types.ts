@@ -6,7 +6,7 @@
 
 import type { ActionEvent, SessionState, Character } from "../types";
 
-export type SystemId = "fate" | "fate-accelerated" | "vampire" | "wod-v20" | "wod-v5";
+export type SystemId = "fate" | "fate-accelerated" | "vampire" | "wod-v20" | "wod-v5" | "dnd-2024";
 
 export interface SystemPluginCore {
   id: SystemId;

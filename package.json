@@ -43,6 +43,12 @@
       "require": "./dist/systems/wod-v5/index.js",
       "default": "./dist/systems/wod-v5/index.js",
       "types": "./dist/systems/wod-v5/index.d.ts"
+    },
+    "./systems/dnd-2024": {
+      "import": "./dist/systems/dnd-2024/index.js",
+      "require": "./dist/systems/dnd-2024/index.js",
+      "default": "./dist/systems/dnd-2024/index.js",
+      "types": "./dist/systems/dnd-2024/index.d.ts"
     }
   },
   "scripts": {
