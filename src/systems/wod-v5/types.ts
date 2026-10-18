@@ -27,6 +27,14 @@ export type WodNpcData = {
   combatLine?: WodCombatLineRow[];
   combatLineManual?: boolean; // GM froze the line (stop re-deriving)
   soakAggravated?: boolean;  // can soak aggravated damage
+  // Story 405 — ficha enxuta (bloco de SPC do V5). `pools` = a Parada Padrao de cada
+  // categoria; e o que a ficha enxuta MOSTRA e o que o roller rola. `attrOverrides` = as
+  // chaves de atributo com VALOR PROPRIO (excecoes declaradas na gaveta dos nove), que o
+  // escritor de parada nao re-carimba e que o roller oferece nomeadas.
+  // Ambos sao opcionais: sem eles, leanSheet.ts deduz dos nove (sem migracao).
+  // (!) NAO sao um par forte/fraco: o Clerigo do livro e 3/5/4 e nenhum par o descreve.
+  pools?: { physical: number; social: number; mental: number };
+  attrOverrides?: string[];
 };
 
 // Capability map — which blocks a creature type has.
@@ -104,10 +112,11 @@ export function getCreatureCaps(creature?: string): WodCreatureCaps {
 // esses overrides valem APENAS para o gating de exibição (ficha, cabeçalho, card de combate).
 // O reducer continua lendo os caps FIXOS de CREATURE_CAPS, então o Customizado NUNCA semeia
 // disciplinas/fraqueza de clã nem reserva de sangue por causa desses toggles.
-export function getEffectiveCaps(sd: { creature?: string; customHasGeneration?: boolean; customHasClan?: boolean; customHasSect?: boolean }): WodCreatureCaps {
+export function getEffectiveCaps(sd: { creature?: string; customHasGeneration?: boolean; customHasClan?: boolean; customHasSect?: boolean; customHasBlood?: boolean; customHasLupine?: boolean }): WodCreatureCaps {
   const base = getCreatureCaps(sd.creature);
   if (sd.creature !== "Customizado") return base;
-  return { ...base, generation: !!sd.customHasGeneration, clan: !!sd.customHasClan, sect: !!sd.customHasSect };
+  // Stories 210/212 (cópia do front) — reserva de sangue e Transformação Lupina do Customizado.
+  return { ...base, generation: !!sd.customHasGeneration, clan: !!sd.customHasClan, sect: !!sd.customHasSect, bloodPool: !!sd.customHasBlood, shapeshift: !!sd.customHasLupine };
 }
 
 // Story 176 (follow-up) — a edição ESTRUTURAL do Customizado (lápis AZUIS: renomear rótulos/
@@ -897,6 +906,8 @@ export type WodV5Data = {
 
   // Tab 4 — Inventário
   money?: string; // free-text money/currency, scoped to the inventory tab
+  /** Story 308/311 (cópia do front) — a bolsa NUMÉRICA; normalizada para 0 nas migrations. */
+  shopWallet?: number;
   inventory: WodItem[];
 
   // Tab 5 — Expand.

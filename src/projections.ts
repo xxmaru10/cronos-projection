@@ -647,7 +647,8 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
      */
     case "CHARACTER_SPELL_UPDATED": {
       const char = state.characters[payload.characterId];
-      if (!char) return state;
+      // Mesmas guardas do `spellsFallback.ts` do front: payload sem magia não pode derrubar o snapshot.
+      if (!char || !payload.spell || typeof payload.spell.id !== "string" || !payload.spell.id) return state;
       const currentSpells = char.spells || [];
       const spellIndex = currentSpells.findIndex((s: any) => s.id === payload.spell.id);
       const newSpells = spellIndex >= 0 ? currentSpells.map((s: any, i: number) => i === spellIndex ? payload.spell : s) : [...currentSpells, payload.spell];
@@ -656,14 +657,15 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
 
     case "CHARACTER_SPELL_DELETED": {
       const char = state.characters[payload.characterId];
-      if (!char) return state;
+      if (!char || typeof payload.spellId !== "string" || !payload.spellId) return state;
       return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, spells: (char.spells || []).filter((s: any) => s.id !== payload.spellId) } } };
     }
 
     case "CHARACTER_MAGIC_LEVEL_UPDATED": {
       const char = state.characters[payload.characterId];
-      if (!char) return state;
-      return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, magicLevel: payload.level } } };
+      // Clamp 0..3, o mesmo do emissor e do `spellsFallback.ts` (payload antigo não passa pelo emissor).
+      if (!char || typeof payload.level !== "number" || !Number.isFinite(payload.level)) return state;
+      return { ...state, characters: { ...state.characters, [payload.characterId]: { ...char, magicLevel: Math.max(0, Math.min(3, Math.trunc(payload.level))) } } };
     }
 
     case "CHARACTER_SKILL_UPDATED": {
@@ -898,6 +900,32 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     case "WORLD_ENTITY_DELETED": {
       const { [payload.entityId]: _, ...remainingEntities } = state.worldEntities || {};
       return { ...state, worldEntities: remainingEntities };
+    }
+
+    /*
+     * Link ficha <-> elemento de Notas (story 224 E3). Espelho de
+     * front_sistema_rpg/src/lib/notesLinkFallback.ts — MANTER EM SYNC. Antes daqui o pacote não
+     * conhecia os dois eventos e o vínculo sumia no snapshot do back. 1:1 e bidirecional: ao
+     * (re)vincular limpa o lado antigo dos dois, e meio-link para alvo que não existe mais sai.
+     */
+    case "NOTES_CHARACTER_LINK_SET":
+    case "NOTES_CHARACTER_LINK_CLEARED":
+      return reduceNotesCharacterLink(state, event.type, payload);
+
+    /*
+     * Galeria de álbuns (story 224 E2, plataforma, todos os sistemas). Espelho de
+     * front_sistema_rpg/src/lib/galleryFallback.ts (`foldGalleryEvent`) — MANTER EM SYNC.
+     */
+    case "GALLERY_ALBUM_CREATED":
+    case "GALLERY_ALBUM_UPDATED":
+    case "GALLERY_ALBUM_DELETED":
+    case "GALLERY_IMAGE_ADDED":
+    case "GALLERY_IMAGE_UPDATED":
+    case "GALLERY_IMAGE_REMOVED": {
+      const albums = ((state as any).galleryAlbums ?? []) as any[];
+      const next = foldGalleryEvent(albums, event.type, payload);
+      if (next === albums && (state as any).galleryAlbums) return state;
+      return { ...state, galleryAlbums: next } as SessionState;
     }
 
     case "MISSION_CREATED":
@@ -1313,6 +1341,89 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     default:
       return state;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Galeria e link ficha <-> nota (espelhos dos fallbacks do front — MANTER EM SYNC)
+// ---------------------------------------------------------------------------
+
+const galleryByOrder = (a: any, b: any) => (a?.order ?? 0) - (b?.order ?? 0);
+
+/** Cópia de `foldGalleryEvent` (front: src/lib/galleryFallback.ts). Mesma ref se nada mudou. */
+function foldGalleryEvent(albums: any[], type: string, p: any): any[] {
+  switch (type) {
+    case "GALLERY_ALBUM_CREATED": {
+      if (!p?.id) return albums;
+      if (albums.some((a) => a.id === p.id)) return albums; // idempotente
+      return [...albums, { ...p, images: p.images || [] }];
+    }
+    case "GALLERY_ALBUM_UPDATED":
+      return albums.map((a) => (a.id === p?.albumId ? { ...a, ...p.changes } : a));
+    case "GALLERY_ALBUM_DELETED":
+      return albums.filter((a) => a.id !== p?.albumId);
+    case "GALLERY_IMAGE_ADDED":
+      if (!p?.image?.id) return albums; // guarda do back: payload sem imagem não derruba o snapshot
+      return albums.map((a) => {
+        if (a.id !== p.albumId) return a;
+        const images = a.images || [];
+        if (images.some((img: any) => img.id === p.image.id)) return a; // idempotente
+        return { ...a, images: [...images, p.image].sort(galleryByOrder) };
+      });
+    case "GALLERY_IMAGE_UPDATED":
+      return albums.map((a) => (a.id === p?.albumId
+        ? { ...a, images: (a.images || []).map((img: any) => (img.id === p.imageId ? { ...img, ...p.changes } : img)).sort(galleryByOrder) }
+        : a));
+    case "GALLERY_IMAGE_REMOVED":
+      return albums.map((a) => (a.id === p?.albumId
+        ? { ...a, images: (a.images || []).filter((img: any) => img.id !== p.imageId) }
+        : a));
+    default:
+      return albums;
+  }
+}
+
+/** Cópia de `applyNotesLinkFallback` para UM evento (front: src/lib/notesLinkFallback.ts). */
+function reduceNotesCharacterLink(state: SessionState, type: string, p: any): SessionState {
+  const entities: Record<string, any> = { ...(state.worldEntities || {}) };
+  const characters: Record<string, any> = { ...(state.characters || {}) };
+  let touched = false;
+  const setEntityLink = (entityId: string, characterId: string | undefined) => {
+    const ent = entities[entityId];
+    if (!ent || ent.linkedCharacterId === characterId) return;
+    entities[entityId] = { ...ent, linkedCharacterId: characterId };
+    touched = true;
+  };
+  const setCharLink = (characterId: string, entityId: string | undefined) => {
+    const ch = characters[characterId];
+    if (!ch || ch.linkedEntityId === entityId) return;
+    characters[characterId] = { ...ch, linkedEntityId: entityId };
+    touched = true;
+  };
+  if (type === "NOTES_CHARACTER_LINK_SET") {
+    const { entityId, characterId } = p || {};
+    if (!entityId || !characterId) return state;
+    const prevCharId = entities[entityId]?.linkedCharacterId;
+    if (prevCharId && prevCharId !== characterId) setCharLink(prevCharId, undefined);
+    const prevEntId = characters[characterId]?.linkedEntityId;
+    if (prevEntId && prevEntId !== entityId) setEntityLink(prevEntId, undefined);
+    setEntityLink(entityId, characterId);
+    setCharLink(characterId, entityId);
+  } else {
+    const { entityId } = p || {};
+    if (!entityId) return state;
+    const prevCharId = entities[entityId]?.linkedCharacterId;
+    setEntityLink(entityId, undefined);
+    if (prevCharId) setCharLink(prevCharId, undefined);
+  }
+  // Reconciliação (igual ao front): meio-link para ficha ou elemento que não existe mais sai.
+  for (const ent of Object.values(entities)) {
+    if (ent?.linkedCharacterId && !characters[ent.linkedCharacterId]) setEntityLink(ent.id, undefined);
+  }
+  for (const ch of Object.values(characters)) {
+    if (ch?.linkedEntityId && !entities[ch.linkedEntityId]) setCharLink(ch.id, undefined);
+  }
+  if (!touched) return state;
+  return { ...state, worldEntities: entities, characters };
 }
 
 // ---------------------------------------------------------------------------

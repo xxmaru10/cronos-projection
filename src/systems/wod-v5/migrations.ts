@@ -84,6 +84,9 @@ export function ensureWodV5Data(char: Character): WodV5Character {
   const merged: WodV5Data = {
     ...base,
     ...sd,
+    // Story 311 — ficha gravada antes da bolsa numerica volta com `shopWallet`
+    // indefinido; o campo Dinheiro e um `input` controlado e nao pode receber isso.
+    shopWallet: typeof sd.shopWallet === "number" ? sd.shopWallet : 0,
     generation: gen,
     healthExtraLevels: extraLevels,
     health: healthArray,

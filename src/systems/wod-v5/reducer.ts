@@ -108,7 +108,9 @@ const V5_GHOUL_ANTAGONIST: V5Antagonist = {
   special: "Servo viciado em sangue de vampiro.",
 };
 
-// Categoria → as 3 chaves de atributo (V5_ATTRIBUTE_KEYS).
+// Categoria → as 3 chaves de atributo. No front o mapa mora em leanSheet.ts (story 405); o pacote
+// não tem a ficha enxuta, então a cópia fica aqui — MANTER EM SYNC com
+// front_sistema_rpg/src/systems/wod-v5/leanSheet.ts (V5_ATTR_BY_CATEGORY).
 const V5_ATTR_BY_CATEGORY: Record<"physical" | "social" | "mental", string[]> = {
   physical: ["forca", "destreza", "vigor"],
   social: ["carisma", "manipulacao", "autocontrole"],
@@ -142,6 +144,13 @@ function applyV5Antagonist(sd: WodV5Data, a: V5Antagonist): void {
   sd.willpowerV5 = Array(Math.max(1, a.willpower)).fill("");
   // Regras especiais → caixa "Regras Especiais" (sd.weakness).
   if (a.special && !sd.weakness) sd.weakness = a.special;
+  // Story 405 — grava as tres Paradas Padrao do statblock. Sem isso elas seriam DEDUZIDAS
+  // dos nove (leanSheet.getV5Pools), o que acerta hoje mas se perderia na primeira excecao
+  // declarada na gaveta. So escreve se o saco de NPC ja existe: criar um aqui marcaria uma
+  // ficha de jogador com tier de NPC.
+  if (sd.npc) {
+    sd.npc = { ...sd.npc, pools: { physical: a.physical, social: a.social, mental: a.mental }, attrOverrides: [] };
+  }
 }
 
 function seedMortalV5(sd: WodV5Data): void {
@@ -471,6 +480,11 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
       if (p.systemData && typeof p.systemData === "object") {
         char = ensureWodV5Data({ ...char, systemData: { ...char.systemData, ...p.systemData } });
       }
+      // Story 211 (fix) — `system` NÃO é campo tipado de Character (o filtro do criador o lê via
+      // `as any`), então o `overrides` acima o descartava. Sem ele, um modelo "Customizado" salvo
+      // no wod-v5 perdia o system e SUMIA das opções de criatura — o filtro caía no fallback
+      // `?? "wod-v20"` (inócuo no v20, mas ≠ "wod-v5"). Preserva o system que veio no payload.
+      if ((p as any).system) (char as any).system = (p as any).system;
       // Story 180 — V5 (vampiro-only) creation seeds. Idempotente no replay (só preenche
       // vazios). A Humanidade inicial (7) e a Potência de Sangue (1) vêm do template; aqui
       // só semeamos as Disciplinas do clã (rating 0) quando há clã e nenhuma foi fornecida.
@@ -691,10 +705,10 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
       // `attackerSuccesses`. The old `penalty` (−1 success/target) is GONE → kept 0 for back-compat.
       const byTarget: Record<string, number> = (p.attackerSuccessesByTarget && typeof p.attackerSuccessesByTarget === "object") ? p.attackerSuccessesByTarget : {};
       const diceByTarget: Record<string, number> = (p.attackerDiceByTarget && typeof p.attackerDiceByTarget === "object") ? p.attackerDiceByTarget : {};
-      // Story 203 (ported by story 208) — the declared maneuver (absent/unknown → "normal",
-      // byte-identical to before). Must mirror the FRONT reducer exactly.
-      // Story 206 — + the 4 grapple-continuation maneuvers (round-2+ contest); they seed targets
-      // "awaiting" like a normal attack (NOT the surprise "auto" seeding). Store-only in the package.
+      // Story 203 — the declared maneuver (absent/unknown → "normal", byte-identical to before).
+      // Story 206 — + the 4 grapple-continuation maneuvers (round-2+ contest). They seed targets
+      // "awaiting" like a normal attack (REAL opposed rolls — the defender rolls Força + Briga); do
+      // NOT give them the surprise "auto" seeding.
       const KNOWN_MANEUVERS = ["normal", "bite", "focused", "grapple", "surprise", "total_attack", "total_defense",
         "grapple_damage", "grapple_bite", "grapple_hold", "grapple_escape"];
       const maneuver: WodV5AttackManeuver = KNOWN_MANEUVERS.includes(p.maneuver) ? p.maneuver : "normal";
@@ -703,9 +717,10 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
         typeof p.grappleMaintainTargetId === "string" && targetIds.includes(p.grappleMaintainTargetId)
           ? p.grappleMaintainTargetId
           : undefined;
-      // Story 203 (ported) — "Ataque Surpresa" resolves vs a STATIC difficulty of 1 (no reactive
-      // defense): each target starts already "auto"-resolved with defenderSuccesses fixed at 1,
-      // instead of "awaiting" a real roll (reuses the existing "auto" duel plumbing, seeded with 1).
+      // Story 203 — "Ataque Surpresa" resolves vs a STATIC difficulty of 1 (no reactive defense):
+      // each target starts already "auto"-resolved with defenderSuccesses fixed at 1, instead of
+      // "awaiting" a real roll. Reuses the existing "auto" duel/outcome plumbing (WOD_V5_DUEL_TARGET_AUTO
+      // already treats "auto" like "rolled" everywhere) — just seeded with 1 instead of 0.
       const targets: WodV5DuelTarget[] = targetIds.map((id, i) => {
         const defensePenalty = hits[id] ?? 0;
         hits[id] = defensePenalty + 1;
@@ -743,8 +758,8 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
         attackerWeaponType: p.attackerWeaponType === "A" ? "A" : "S",
         attackerNote: typeof p.attackerNote === "string" ? p.attackerNote : "",
         targets,
-        // Story 203 (ported) — surprise's targets start "auto" (all resolved) → phase resolves
-        // immediately. Every other maneuver starts "awaiting" → phase stays "active", unchanged.
+        // Story 203 — surprise's targets start "auto" (all resolved) → phase resolves immediately.
+        // Every other maneuver starts every target "awaiting" → phase stays "active", unchanged.
         phase: targets.every((t) => t.status !== "awaiting") ? "resolved" : "active",
         maneuver,
         focusedPenalty: maneuver === "focused" ? (Number(p.focusedPenalty) || 0) : undefined,
@@ -777,7 +792,7 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
           defenderWeaponType: p.defenderWeaponType === "A" ? "A" : ("S" as const),
           defenderNote: typeof p.defenderNote === "string" ? p.defenderNote : "",
           status: "rolled" as const,
-          // Story 204 (ported by story 208) — BLOQUEIO: a guardian rolled this line for the ally.
+          // Story 204 — BLOQUEIO: a guardian rolled this line in the ally's place.
           blockedBy: typeof p.blockedBy === "string" ? p.blockedBy : undefined,
         };
       });
@@ -849,9 +864,8 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
       return { ...state, wodV5Turn: { ...prev, combatRes: null } } as any;
     }
 
-    // Story 203/204 (ported by story 208) — action menu flags (grapple/bite/no-defense/total-
-    // defense/shield/maneuver-bonus). Store-only merge; a field explicitly set to null clears it
-    // (Partial<T> patch, replay-safe/idempotent). Mirrors the FRONT reducer exactly.
+    // Story 203 — action menu flags (grapple/bite/no-defense/total-defense). Store-only
+    // merge; a field explicitly set to null clears it (Partial<T> patch, replay-safe/idempotent).
     case "WOD_V5_ACTION_FLAG_SET": {
       const prev = ensureWodV5Turn(state);
       if (!p.characterId || !p.patch || typeof p.patch !== "object") return state;

@@ -831,6 +831,8 @@ export type WodV20Data = {
 
   // Tab 4 — Inventário
   money?: string; // free-text money/currency, scoped to the inventory tab
+  /** Story 308/311 (cópia do front) — a bolsa NUMÉRICA; normalizada para 0 nas migrations. */
+  shopWallet?: number;
   inventory: WodItem[];
 
   // Tab 5 — Expand.

@@ -161,6 +161,9 @@ export function createWodV20SystemData(): WodV20Data {
     clanDerangement: "",
 
     money: "",
+    // Story 311 — a bolsa NUMERICA nasce em 0: o campo Dinheiro da aba Inventario e um
+    // `input` controlado, e `undefined` o deixaria solto no primeiro caractere digitado.
+    shopWallet: 0,
     inventory: [],
     expanded: [],
     sectionColors: {},
