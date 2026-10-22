@@ -563,6 +563,12 @@ export function reduceDnd2024(state: SessionState, event: ActionEvent): SessionS
           rollEventId: String(p.rollEventId || ""),
           reactorIds,
           round: Math.max(0, Math.trunc(Number(p.round) || 0)),
+          // Story 496 (resultado da mesa) — o que a rerrolagem automática precisa. Aditivos: ausentes = só o aviso.
+          ...(typeof p.bonus === "number" ? { bonus: Math.trunc(p.bonus) } : {}),
+          ...(typeof p.dc === "number" ? { dc: Math.trunc(p.dc) } : {}),
+          ...(p.label ? { label: String(p.label) } : {}),
+          ...(p.saveNonce ? { saveNonce: String(p.saveNonce) } : {}),
+          ...(Array.isArray(p.conditions) ? { conditions: p.conditions.map(String) } : {}),
         },
       });
     }
@@ -658,7 +664,7 @@ export function reduceDnd2024(state: SessionState, event: ActionEvent): SessionS
       const initiativeMode = p.initiativeMode === "flat" ? "flat" : "ability";
       return withTurn(state, {
         ...turnBag(state), initiativeMode,
-        totals: {}, dice: {}, order: [], manualOrdered: false,
+        totals: {}, dice: {}, pairs: {}, order: [], manualOrdered: false,
       });
     }
 
@@ -668,12 +674,13 @@ export function reduceDnd2024(state: SessionState, event: ActionEvent): SessionS
       const bag = turnBag(state);
       const totals = { ...bag.totals }; delete totals[id];
       const dice = { ...bag.dice }; delete dice[id];
+      const pairs = { ...(bag.pairs || {}) }; delete pairs[id];
       // Mesmo motivo do caso acima, em escala de UMA linha: o total antigo foi rolado contra o
       // atributo antigo, então ele morre junto com a troca.
       return withTurn(state, {
         ...bag,
         traitByCharacter: { ...bag.traitByCharacter, [id]: String(p.ability || "dex") },
-        totals, dice,
+        totals, dice, pairs,
       });
     }
 
@@ -686,16 +693,23 @@ export function reduceDnd2024(state: SessionState, event: ActionEvent): SessionS
       // escrever "manual" em vez de inventar um "d20 N + M" que ninguém rolou.
       if (p.die == null) delete dice[id];
       else dice[id] = Number(p.die);
-      return withTurn(state, { ...bag, totals: { ...bag.totals, [id]: Number(p.total) || 0 }, dice });
+      /* Story 496 (resultado da mesa, b11-09) — com Vantagem/Desvantagem a linha mostra OS DOIS d20 (o dono via só
+         o que ficou e achou que o Atleta Extraordinário não valia). Ausente = um d20 só ou valor digitado. */
+      const pairs = { ...(bag.pairs || {}) };
+      if (p.die != null && p.otherDie != null && (p.rollMode === "advantage" || p.rollMode === "disadvantage")) {
+        pairs[id] = { other: Number(p.otherDie), mode: p.rollMode };
+      } else delete pairs[id];
+      return withTurn(state, { ...bag, totals: { ...bag.totals, [id]: Number(p.total) || 0 }, dice, pairs });
     }
 
     case "DND_INITIATIVE_CLEARED": {
       const bag = turnBag(state);
       const id = p.characterId ? String(p.characterId) : "";
-      if (!id) return withTurn(state, { ...bag, totals: {}, dice: {}, order: [], manualOrdered: false });
+      if (!id) return withTurn(state, { ...bag, totals: {}, dice: {}, pairs: {}, order: [], manualOrdered: false });
       const totals = { ...bag.totals }; delete totals[id];
       const dice = { ...bag.dice }; delete dice[id];
-      return withTurn(state, { ...bag, totals, dice, manualOrdered: false });
+      const pairs = { ...(bag.pairs || {}) }; delete pairs[id];
+      return withTurn(state, { ...bag, totals, dice, pairs, manualOrdered: false });
     }
 
     case "DND_INITIATIVE_ORDER_SET":
