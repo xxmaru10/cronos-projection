@@ -489,6 +489,11 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     case "SESSION_SYSTEM_SETTINGS_UPDATED":
       if (!payload?.systemId || !payload?.settings || typeof payload.settings !== "object") return state;
       return { ...state, systemSettings: { ...(state.systemSettings || {}), [payload.systemId]: payload.settings } };
+    // Story 318 (front) — "Permitir jogador usar" os efeitos sonoros. Até aqui só o
+    // `sfxPermissionFallback.ts` do front dobrava, e o snapshot do back devolvia a permissão
+    // desligada. Mesma regra do fallback: payload torto vira `false`.
+    case "SESSION_SFX_PERMISSION_UPDATED":
+      return { ...state, sfxPlayersAllowed: !!payload?.allowed };
     case "CARD_OVERLAY_SET":
       return {
         ...state,

@@ -150,6 +150,8 @@ export interface SessionState {
   tableRules?: string;
   /** Story 433 — configurações de mesa POR SISTEMA (bolsa opaca que só o plugin lê). Keyed by systemId. */
   systemSettings?: Record<string, Record<string, unknown>>;
+  /** Story 318 (front) — "Permitir jogador usar" os efeitos sonoros. Plataforma: vale em todo sistema. */
+  sfxPlayersAllowed?: boolean;
   /** Story 223 — overlays de card por personagem (Olho/Luz/Furtivo). Keyed by characterId. */
   cardOverlays?: Record<string, { hidden?: boolean; stealth?: boolean; light?: boolean }>;
   stickyNotes?: any[];
