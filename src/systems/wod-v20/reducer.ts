@@ -2,7 +2,6 @@ import type { ActionEvent, SessionState, Character } from "../../types";
 import type { WodV20Character, WodV20Data } from "./types";
 import {
   getGenerationBloodLimits,
-  getClanWeakness,
   APPEARANCE_ZERO_CLANS,
   CREATURE_CAPS,
   CREATURE_STARTING_POWERS,
@@ -166,9 +165,8 @@ export function reduceWodV20(state: SessionState, event: ActionEvent): SessionSt
           const disciplines = buildClanDisciplines(nextSd.clan, nextSd.clanAntitribu, gen);
           if (disciplines.length > 0) nextSd.disciplines = disciplines;
         }
-        if (nextSd.clan && !nextSd.weakness?.trim()) {
-          nextSd.weakness = getClanWeakness(nextSd.clan);
-        }
+        // A fraqueza NÃO é mais preenchida aqui (questão jurídica B3, 21/11/2026): o criador manda a
+        // que o mestre escreveu no catálogo da mesa, ou nada.
       } else if (caps.disciplines && nextSd.creature === "Carniçal") {
         // Story 164 — GHOUL / REVENANT. A known revenant family (≠ Nenhum/Outro)
         // OVERRIDES the clan-of-origin: family disciplines AND family weakness. A
@@ -177,7 +175,7 @@ export function reduceWodV20(state: SessionState, event: ActionEvent): SessionSt
         const fam = getRevenantFamily(nextSd.revenantFamily);
         if (fam) {
           if (noDisc) nextSd.disciplines = disciplinesFromNames(fam.disciplines, true);
-          if (!nextSd.weakness?.trim()) nextSd.weakness = fam.weakness;
+          // A fraqueza da família vem no payload do criador (a que o mestre escreveu), nunca daqui.
         } else if (noDisc) {
           const clanDisc = nextSd.clan ? CLAN_DISCIPLINES[nextSd.clan] ?? [] : [];
           nextSd.disciplines = disciplinesFromNames(clanDisc, true);
@@ -507,7 +505,7 @@ export function reduceWodV20(state: SessionState, event: ActionEvent): SessionSt
 
       // G7 — Appearance 0 for clans whose weakness zeroes it. Story 170 — a Abominação
       // NÃO sofre a fraqueza de clã (só herda as disciplinas), então não zera Aparência.
-      if (caps.clan && nextSd.creature !== "Abominação" && nextSd.clan && APPEARANCE_ZERO_CLANS.has(nextSd.clan) && nextSd.attributes?.aparencia) {
+      if (caps.clan && nextSd.creature !== "Abominação" && nextSd.clan && ((nextSd as { clanAparenciaZero?: boolean }).clanAparenciaZero || APPEARANCE_ZERO_CLANS.has(nextSd.clan)) && nextSd.attributes?.aparencia) {
         nextSd.attributes = { ...nextSd.attributes, aparencia: { ...nextSd.attributes.aparencia, rating: 0 } };
       }
 

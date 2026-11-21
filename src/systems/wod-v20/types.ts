@@ -1055,42 +1055,6 @@ export function getAttributeMax(gen: number, clan: string | undefined, attrKey: 
   return getGenerationAttributeMax(gen);
 }
 
-export const CLAN_WEAKNESS: Record<string, string> = {
-  // 13 clãs principais
-  "Assamita": "Sangue vampírico causa dano letal (1/ponto); diablerie causa dano agravado.",
-  "Brujah": "+2 na dificuldade contra frenesi; não pode usar Força de Vontade para evitá-lo.",
-  "Gangrel": "Ganha um traço animal após cada frenesi.",
-  "Giovanni": "Mordida causa o dobro de dano em mortais.",
-  "Lasombra": "Não possui reflexo.",
-  "Malkaviano": "Uma perturbação mental incurável e permanente.",
-  "Nosferatu": "Aparência 0 permanente.",
-  "Ravnos": "Vício específico que exige teste (Dificuldade 6) para resistir.",
-  "Seguidores de Set": "+2 níveis de dano por luz solar; -1 dado sob iluminação forte.",
-  "Toreador": "Transe paralisante diante da beleza (Dificuldade 6 para resistir).",
-  "Tremere": "Sofre Laço de Sangue total com apenas 2 goles.",
-  "Tzimisce": "Sem a terra natal ao dormir, reduz a parada de dados pela metade a cada dia.",
-  "Ventrue": "Só se alimenta de um tipo específico de sangue mortal.",
-  // Exceções essenciais
-  "Caitiff": "Disciplinas custam mais caro (Nível x 6 em XP); sem Status inicial.",
-  "Sangue-Fraco": "Gasto de sangue custa o dobro; não consegue criar laços ou carniçais.",
-  // Linhagens menores
-  "Ahrimanes": "Sangue inerte (não cria vampiros, carniçais ou laços de sangue).",
-  "Arautos das Caveiras": "Aparência de esqueleto e caveira (Aparência 0).",
-  "Baali": "Símbolos religiosos queimam a pele; Fé tem efeito dobrado.",
-  "Capadócios": "Palidez cadavérica perceptível e irreversível.",
-  "Filhas da Cacofonia": "Ouvem música eternamente (+2 de Dif em Percepção; Prontidão máxima 3).",
-  "Gárgulas": "Aparência 0; penalidade de -2 na Vontade para resistir a controle mental.",
-  "Kiasyd": "Aversão e dano agravado pelo contato com ferro puro.",
-  "Lamia": "Mordida transmite uma peste letal a qualquer mortal.",
-  "Nagaraja": "Precisa comer carne humana crua além de sangue para não perder dados físicos.",
-  "Salubri": "Alimentar-se de alvo relutante custa 1 Vontade e 1 nível de Vitalidade do vampiro.",
-  "Samedi": "Cadáver em estado de decomposição contínua (Aparência 0).",
-  "Verdadeiro Brujah": "Frios e sem paixão (+2 de Dif em Consciência/Convicção; Virtudes custam o dobro de XP).",
-};
-
-export function getClanWeakness(clan?: string): string {
-  return CLAN_WEAKNESS[clan ?? ""] ?? "";
-}
 
 export const SECTS: string[] = [
   "Camarilla",

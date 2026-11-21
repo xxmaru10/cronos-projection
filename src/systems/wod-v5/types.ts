@@ -1130,42 +1130,6 @@ export function getAttributeMax(gen: number, clan: string | undefined, attrKey: 
   return getGenerationAttributeMax(gen);
 }
 
-export const CLAN_WEAKNESS: Record<string, string> = {
-  // 13 clãs principais
-  "Assamita": "Sangue vampírico causa dano letal (1/ponto); diablerie causa dano agravado.",
-  "Brujah": "+2 na dificuldade contra frenesi; não pode usar Força de Vontade para evitá-lo.",
-  "Gangrel": "Ganha um traço animal após cada frenesi.",
-  "Giovanni": "Mordida causa o dobro de dano em mortais.",
-  "Lasombra": "Não possui reflexo.",
-  "Malkaviano": "Uma perturbação mental incurável e permanente.",
-  "Nosferatu": "Aparência 0 permanente.",
-  "Ravnos": "Vício específico que exige teste (Dificuldade 6) para resistir.",
-  "Seguidores de Set": "+2 níveis de dano por luz solar; -1 dado sob iluminação forte.",
-  "Toreador": "Transe paralisante diante da beleza (Dificuldade 6 para resistir).",
-  "Tremere": "Sofre Laço de Sangue total com apenas 2 goles.",
-  "Tzimisce": "Sem a terra natal ao dormir, reduz a parada de dados pela metade a cada dia.",
-  "Ventrue": "Só se alimenta de um tipo específico de sangue mortal.",
-  // Exceções essenciais
-  "Caitiff": "Disciplinas custam mais caro (Nível x 6 em XP); sem Status inicial.",
-  "Sangue-Fraco": "Gasto de sangue custa o dobro; não consegue criar laços ou carniçais.",
-  // Linhagens menores
-  "Ahrimanes": "Sangue inerte (não cria vampiros, carniçais ou laços de sangue).",
-  "Arautos das Caveiras": "Aparência de esqueleto e caveira (Aparência 0).",
-  "Baali": "Símbolos religiosos queimam a pele; Fé tem efeito dobrado.",
-  "Capadócios": "Palidez cadavérica perceptível e irreversível.",
-  "Filhas da Cacofonia": "Ouvem música eternamente (+2 de Dif em Percepção; Prontidão máxima 3).",
-  "Gárgulas": "Aparência 0; penalidade de -2 na Vontade para resistir a controle mental.",
-  "Kiasyd": "Aversão e dano agravado pelo contato com ferro puro.",
-  "Lamia": "Mordida transmite uma peste letal a qualquer mortal.",
-  "Nagaraja": "Precisa comer carne humana crua além de sangue para não perder dados físicos.",
-  "Salubri": "Alimentar-se de alvo relutante custa 1 Vontade e 1 nível de Vitalidade do vampiro.",
-  "Samedi": "Cadáver em estado de decomposição contínua (Aparência 0).",
-  "Verdadeiro Brujah": "Frios e sem paixão (+2 de Dif em Consciência/Convicção; Virtudes custam o dobro de XP).",
-};
-
-export function getClanWeakness(clan?: string): string {
-  return CLAN_WEAKNESS[clan ?? ""] ?? "";
-}
 
 export const SECTS: string[] = [
   "Camarilla",
@@ -1482,30 +1446,6 @@ export const V5_CLANS: string[] = [
 // como texto livre no criador.
 export const V5_SECTS: string[] = ["Camarilla", "Anarquistas", "Independentes", "Sabbat", "Ashirra"];
 
-// Story 181 — Fraqueza (bane) de cada clã do V5, condensada em UMA frase curta e direta
-// (só a mecânica). Sangue-Ralo intencionalmente ausente (sem fraqueza). Exibida como linha
-// DERIVADA somente-leitura no bloco de Status; a caixa livre "Maldição do Clã" (clanBane)
-// continua separada e editável.
-export const V5_CLAN_WEAKNESS: Record<string, string> = {
-  "Banu Haqim": "Ao beber o sangue de outro vampiro, teste frenesi de Fome (dif. 2 + Potência de Sangue do alvo) ou entra em frenesi para drená-lo.",
-  "Brujah": "Penalidade igual à sua Potência de Sangue para resistir a frenesi de fúria.",
-  "Gangrel": "Ao entrar em frenesi, ganha traços bestiais por uma noite inteira: penalidade igual à Potência de Sangue em testes de Carisma/Manipulação.",
-  "Hecata": "O Beijo causa dor agonizante, não êxtase: vítimas livres lutam para fugir e a mordida em combate causa um dano agravado extra.",
-  "Lasombra": "Sua imagem aparece distorcida em espelhos/câmeras/gravações; penalidade igual à Potência de Sangue ao usar tecnologia (telas, microfones, celulares).",
-  "Malkaviano": "Possui um Transtorno mental incurável que se manifesta com penalidades em ações por uma cena ao sofrer Falha Crítica ou Falha Bestial.",
-  "Ministério": "Sob luz forte ou solar, penalidade igual à Potência de Sangue em todos os testes, somada também ao dano agravado recebido da luz solar.",
-  "Nosferatu": "Não passa por humano sem Disciplinas: Aparência sempre 0 e penalidade em qualquer teste social em que a aparência possa pesar contra.",
-  "Ravnos": "Dormir mais de uma vez por semana a menos de 1 km do mesmo lugar causa dano agravado ao acordar na noite seguinte.",
-  "Salubri": "Ao usar uma Disciplina, o terceiro olho abre e chora sangue impossível de ocultar; seu sangue é saboroso demais e tenta outros vampiros a diablerizá-lo.",
-  "Toreador": "Diante de algo de grande beleza, teste Autocontrole ou fica hipnotizado, com penalidades massivas em qualquer ação que não seja contemplá-lo.",
-  "Tremere": "Nunca consegue criar um Laço de Sangue completo em outro vampiro (mas ainda pode ser laçado por outros).",
-  "Tzimisce": "Deve descansar cercado por terra de sua terra natal ou dentro de seu domínio escolhido; senão sofre penalidades cumulativas a cada noite.",
-  "Ventrue": "Só consegue se alimentar de um tipo específico de presa, escolhido na criação; qualquer outro sangue é vomitado e não sacia a Fome.",
-};
-
-export function getV5ClanWeakness(clan?: string): string {
-  return V5_CLAN_WEAKNESS[clan ?? ""] ?? "";
-}
 
 // Story 181 — blindagem (proteção) por classe de armadura V5.
 export const V5_ARMOR_VALUE: Record<NonNullable<Armor["armorType"]>, number> = {

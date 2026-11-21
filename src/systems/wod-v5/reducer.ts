@@ -1,7 +1,7 @@
 import type { ActionEvent, SessionState, Character } from "../../types";
 import type { WodV5Character, WodV5Data, Trait, WodV5TurnState, WodV5CombatRes, WodV5DuelTarget, WodV5DamageRes, V5Damage, WodV5AttackManeuver, WodV5ActionFlags } from "./types";
 import { createWodV5Character, buildV5ClanDisciplines, mkTrait } from "./characterTemplate";
-import { getV5ClanWeakness, V5_DISCIPLINE_ICON_BY_NAME } from "./types";
+import { V5_DISCIPLINE_ICON_BY_NAME } from "./types";
 import { ensureWodV5Data } from "./migrations";
 
 // ─── Story 182 — Lobisomem (V5): statblock FIXO do antagonista ────────────────
@@ -163,6 +163,15 @@ function seedGhoulV5(sd: WodV5Data): void {
   applyV5Antagonist(sd, V5_GHOUL_ANTAGONIST);
   // "Possuem UMA Disciplina com valor 1, de acordo com o clã" — semeia só a 1ª disciplina
   // do clã em rating 1 (o GM adiciona mais pelo picker). Sem clã conhecido → nenhuma.
+  // `ghoulDisciplina` vem do criador (catálogo da mesa do mestre): este reducer não conhece o catálogo.
+  const escolhida = (sd as { ghoulDisciplina?: string }).ghoulDisciplina?.trim();
+  if (escolhida) {
+    const t = mkTrait(escolhida, { rating: 1, max: 5 });
+    const icon = V5_DISCIPLINE_ICON_BY_NAME[escolhida];
+    if (icon) t.icon = icon;
+    sd.disciplines = [t];
+    return;
+  }
   const clanDiscs = buildV5ClanDisciplines(sd.clan);
   if (clanDiscs.length > 0) {
     sd.disciplines = [{ ...clanDiscs[0], rating: 1 }];
@@ -497,12 +506,8 @@ export function reduceWodV5(state: SessionState, event: ActionEvent): SessionSta
         const disciplines = buildV5ClanDisciplines(nextSd.clan);
         if (disciplines.length > 0) nextSd.disciplines = disciplines;
       }
-      // Story 181 — semeia a Maldição do Clã (= fraqueza) na própria caixa editável quando
-      // há clã e o campo está vazio. Idempotente; o jogador pode editar depois. Só Vampiro.
-      if (nextSd.creature === "Vampiro" && nextSd.clan && !nextSd.clanBane) {
-        const bane = getV5ClanWeakness(nextSd.clan);
-        if (bane) nextSd.clanBane = bane;
-      }
+      // A Maldição do Clã NÃO é mais semeada aqui (questão jurídica B3, 21/11/2026): o criador manda a
+      // fraqueza que o mestre escreveu no catálogo da mesa, ou nada.
       // Story 182 — Lobisomem (V5): statblock fixo (atributos/perícias/disciplinas/garras).
       if (nextSd.creature === "Lobisomem") {
         seedWerewolfV5(nextSd);
