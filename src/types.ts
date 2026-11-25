@@ -2,6 +2,15 @@
 // Tipos de domínio necessários para projeção de estado.
 // Copiados de front_sistema_rpg/src/types/domain.ts — manter em sync.
 
+export interface WorldCategory {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  hiddenFromPlayers?: boolean;
+  createdAt: string;
+}
+
 export interface ActionEvent {
   id: string;
   sessionId: string;
@@ -166,6 +175,8 @@ export interface SessionState {
   characterAssignments?: Record<string, string[]>;
   battlemap?: BattlemapState;
   worldEntities?: Record<string, any>;
+  worldCategories?: WorldCategory[];
+  worldCategoryOrder?: string[];
   currentTurnUserId?: string;
   currentTurnIndex?: number;
   turnOrder?: string[];
@@ -189,4 +200,11 @@ export interface SessionState {
   actedThisRound?: string[];
   electionPending?: boolean;
   [key: string]: any;
+}
+
+export interface AgendaCell {
+  color?: string;
+  imageUrl?: string;
+  text?: string;
+  tags?: any[];
 }

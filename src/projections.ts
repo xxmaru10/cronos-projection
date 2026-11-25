@@ -23,6 +23,122 @@ import { normalizeIdentity } from "./identity";
 
 
 // ---------------------------------------------------------------------------
+// Story 562 — Categorias customizadas do menu Mundo (WORLD_CATEGORY_*).
+// MANTER EM SYNC com front_sistema_rpg/src/lib/worldCategoriesFallback.ts.
+// ---------------------------------------------------------------------------
+
+const MAX_CUSTOM_WORLD_CATEGORIES = 30;
+const BUILTIN_WORLD_TYPES = new Set<string>([
+  "PERSONAGEM",
+  "LOCALIZACAO",
+  "MAPA",
+  "FACAO",
+  "FAMILIA",
+  "RELIGIAO",
+  "BESTIARIO",
+  "RACA",
+  "OUTROS",
+]);
+
+function resolveWorldDeleteDest(
+  deletingId: string,
+  targetCategoryId: string | undefined,
+  customCategories: any[],
+): string {
+  if (!targetCategoryId || targetCategoryId === deletingId || targetCategoryId === "MAPA") {
+    return "OUTROS";
+  }
+  if (BUILTIN_WORLD_TYPES.has(targetCategoryId)) return targetCategoryId;
+  if (customCategories.some((c) => c?.id === targetCategoryId)) return targetCategoryId;
+  return "OUTROS";
+}
+
+function reduceWorldCategory(state: SessionState, type: string, payload: any): SessionState {
+  const p = payload || {};
+  switch (type) {
+    case "WORLD_CATEGORY_CREATED": {
+      const cat = p.category;
+      if (!cat?.id || BUILTIN_WORLD_TYPES.has(cat.id)) return state;
+      const list = state.worldCategories || [];
+      if (list.some((c) => c.id === cat.id)) return state;
+      if (list.length >= MAX_CUSTOM_WORLD_CATEGORIES) return state;
+      const nextCategories = [...list, cat];
+      const nextOrder = state.worldCategoryOrder
+        ? state.worldCategoryOrder.includes(cat.id)
+          ? state.worldCategoryOrder
+          : [...state.worldCategoryOrder, cat.id]
+        : undefined;
+      return {
+        ...state,
+        worldCategories: nextCategories,
+        ...(nextOrder !== undefined ? { worldCategoryOrder: nextOrder } : {}),
+      };
+    }
+    case "WORLD_CATEGORY_UPDATED": {
+      const categoryId = p.categoryId;
+      const patch = p.patch;
+      if (!categoryId || BUILTIN_WORLD_TYPES.has(categoryId) || !patch) return state;
+      const list = state.worldCategories || [];
+      if (!list.some((c) => c.id === categoryId)) return state;
+      return {
+        ...state,
+        worldCategories: list.map((c) =>
+          c.id === categoryId ? { ...c, ...patch, id: c.id } : c,
+        ),
+      };
+    }
+    case "WORLD_CATEGORY_DELETED": {
+      const categoryId = p.categoryId;
+      const targetCategoryId = p.targetCategoryId;
+      if (!categoryId || BUILTIN_WORLD_TYPES.has(categoryId)) return state;
+      const list = state.worldCategories || [];
+      const hadCategory = list.some((c) => c.id === categoryId);
+      const dest = resolveWorldDeleteDest(categoryId, targetCategoryId, list);
+      const nextCategories = hadCategory ? list.filter((c) => c.id !== categoryId) : list;
+      const nextOrder = state.worldCategoryOrder
+        ? state.worldCategoryOrder.filter((id) => id !== categoryId)
+        : undefined;
+      const entities = state.worldEntities || {};
+      let entitiesChanged = false;
+      const nextEntities: Record<string, any> = {};
+      for (const [key, ent] of Object.entries(entities)) {
+        if (ent && ent.type === categoryId) {
+          entitiesChanged = true;
+          nextEntities[key] = { ...ent, type: dest };
+        } else {
+          nextEntities[key] = ent;
+        }
+      }
+      if (!hadCategory && !entitiesChanged && nextOrder === state.worldCategoryOrder) {
+        return state;
+      }
+      return {
+        ...state,
+        worldCategories: nextCategories,
+        ...(nextOrder !== undefined ? { worldCategoryOrder: nextOrder } : {}),
+        ...(entitiesChanged ? { worldEntities: nextEntities } : {}),
+      };
+    }
+    case "WORLD_CATEGORIES_REORDERED": {
+      if (!Array.isArray(p.order)) return state;
+      const validCustom = new Set((state.worldCategories || []).map((c) => c.id));
+      const seen = new Set<string>();
+      const cleaned: string[] = [];
+      for (const rawId of p.order) {
+        if (typeof rawId !== "string" || seen.has(rawId)) continue;
+        if ((BUILTIN_WORLD_TYPES.has(rawId) && rawId !== "MAPA") || validCustom.has(rawId)) {
+          seen.add(rawId);
+          cleaned.push(rawId);
+        }
+      }
+      return { ...state, worldCategoryOrder: cleaned };
+    }
+    default:
+      return state;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Story 308 — auxiliares das LOJAS (ver o bloco `case "SHOP_*"` no reducer).
 // MANTER EM SYNC com front_sistema_rpg/src/lib/shopFallback.ts.
 // ---------------------------------------------------------------------------
@@ -907,6 +1023,12 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
       return { ...state, worldEntities: remainingEntities };
     }
 
+    case "WORLD_CATEGORY_CREATED":
+    case "WORLD_CATEGORY_UPDATED":
+    case "WORLD_CATEGORY_DELETED":
+    case "WORLD_CATEGORIES_REORDERED":
+      return reduceWorldCategory(state, event.type, payload);
+
     /*
      * Link ficha <-> elemento de Notas (story 224 E3). Espelho de
      * front_sistema_rpg/src/lib/notesLinkFallback.ts — MANTER EM SYNC. Antes daqui o pacote não
@@ -1029,7 +1151,7 @@ function reduceFateLegacy(state: SessionState, event: ActionEvent): SessionState
     case "AGENDA_PAGE_DELETED":
       return { ...state, agendas: (state.agendas || []).map((a: any) => a.id === payload.agendaId ? { ...a, pages: (a.pages || []).filter((p: any) => p.id !== payload.pageId) } : a) };
     case "AGENDA_CELL_UPDATED":
-      return { ...state, agendas: (state.agendas || []).map((a: any) => { if (a.id !== payload.agendaId) return a; return { ...a, pages: (a.pages || []).map((p: any) => { if (p.id !== payload.pageId) return p; const cells = { ...(p.cells || {}) }; const cell = payload.cell; const isEmpty = !cell || ((!cell.tags || cell.tags.length === 0) && !cell.text && !cell.color); if (isEmpty) delete cells[payload.cellKey]; else cells[payload.cellKey] = cell; return { ...p, cells }; }) }; }) };
+      return { ...state, agendas: (state.agendas || []).map((a: any) => { if (a.id !== payload.agendaId) return a; return { ...a, pages: (a.pages || []).map((p: any) => { if (p.id !== payload.pageId) return p; const cells = { ...(p.cells || {}) }; const cell = payload.cell; const isEmpty = !cell || ((!cell.tags || cell.tags.length === 0) && !cell.text && !cell.color && !cell.imageUrl); if (isEmpty) delete cells[payload.cellKey]; else cells[payload.cellKey] = cell; return { ...p, cells }; }) }; }) };
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Story 308 (Épico 05) — LOJAS. E o motivo de estarem AQUI é o mesmo da Agenda logo acima.
